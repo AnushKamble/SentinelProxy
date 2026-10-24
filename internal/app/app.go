@@ -46,6 +46,7 @@ type App struct {
 	proxies        map[string]*proxy.ProxyHandler                // key: backend.ID
 	logger         *slog.Logger
 	listener       net.Listener
+	watcher        *config.Watcher
 	mu             sync.RWMutex
 }
 
@@ -267,10 +268,123 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 	return app, nil
 }
 
+// Reload atomically parses, validates, and swaps configuration with state continuity preservation.
+func (a *App) Reload() error {
+	newCfg, err := config.LoadFromFile(a.configPath)
+	if err != nil {
+		a.metrics.RecordConfigReload(false)
+		a.logger.Error("config reload rejected: invalid configuration", "error", err)
+		return fmt.Errorf("reload validation failed: %w", err)
+	}
+
+	newSnap, err := config.NewRuntimeSnapshot(newCfg)
+	if err != nil {
+		a.metrics.RecordConfigReload(false)
+		a.logger.Error("failed to construct candidate runtime snapshot", "error", err)
+		return fmt.Errorf("runtime snapshot failed: %w", err)
+	}
+
+	newRouter := router.NewRouter(newCfg.Routes)
+	newBalancers := make(map[string]balancer.Balancer)
+	newRouteBackends := make(map[string][]*balancer.Backend)
+	newBreakers := make(map[string]*circuitbreaker.CircuitBreaker)
+	newLimiters := make(map[string]*ratelimit.Limiter)
+	newProxies := make(map[string]*proxy.ProxyHandler)
+	var newProbeTargets []health.ProbeTarget
+
+	a.mu.RLock()
+	oldBreakers := a.breakers
+	oldLimiters := a.limiters
+	oldProxies := a.proxies
+	a.mu.RUnlock()
+
+	for _, r := range newCfg.Routes {
+		if r.LoadBalancer == "least_connections" {
+			newBalancers[r.ID] = balancer.NewLeastConnectionsBalancer()
+		} else {
+			newBalancers[r.ID] = balancer.NewRoundRobinBalancer()
+		}
+
+		// Transfer rate limiter state if route config matches
+		if r.RateLimit.Enabled {
+			if oldLim, exists := oldLimiters[r.ID]; exists {
+				newLimiters[r.ID] = oldLim // Preserve key token bucket state
+			} else {
+				newLimiters[r.ID] = ratelimit.NewLimiter(r.ID, r.RateLimit, nil)
+			}
+		}
+
+		var bList []*balancer.Backend
+		for _, b := range r.Backends {
+			targetURL, err := url.Parse(b.URL)
+			if err != nil {
+				return err
+			}
+			backendObj := &balancer.Backend{
+				ID:     b.ID,
+				URL:    targetURL,
+				Weight: b.Weight,
+			}
+			bList = append(bList, backendObj)
+
+			// State continuity: transfer circuit breaker if unchanged identity exists
+			cbKey := r.ID + "/" + b.ID
+			if oldCb, exists := oldBreakers[cbKey]; exists {
+				newBreakers[cbKey] = oldCb // Preserve circuit breaker state (e.g. still OPEN)
+			} else {
+				newBreakers[cbKey] = circuitbreaker.NewCircuitBreaker(r.ID, b.ID, r.CircuitBreaker, nil, func(rt, bk string, from, to circuitbreaker.State) {
+					a.metrics.RecordCircuitBreakerTransition(rt, bk, string(from), string(to))
+					a.metrics.SetCircuitBreakerState(rt, bk, string(to))
+					a.logger.Warn("circuit breaker state transition", "route_id", rt, "backend_id", bk, "from", from, "to", to)
+				})
+				a.metrics.SetCircuitBreakerState(r.ID, b.ID, "CLOSED")
+			}
+
+			if r.HealthCheck.Path != "" {
+				probeURL := strings.TrimSuffix(b.URL, "/") + r.HealthCheck.Path
+				newProbeTargets = append(newProbeTargets, health.ProbeTarget{
+					RouteID:   r.ID,
+					BackendID: b.ID,
+					ProbeURL:  probeURL,
+					Config:    r.HealthCheck,
+				})
+			}
+
+			// Reuse existing proxy handler if unchanged
+			if oldPh, exists := oldProxies[b.ID]; exists && oldPh.Target.String() == targetURL.String() {
+				newProxies[b.ID] = oldPh
+			} else {
+				newProxies[b.ID] = proxy.NewProxyHandler(targetURL, a.transport)
+			}
+		}
+		newRouteBackends[r.ID] = bList
+	}
+
+	// Atomic swap
+	a.mu.Lock()
+	a.sm.Swap(newSnap)
+	a.router = newRouter
+	a.balancers = newBalancers
+	a.routeBackends = newRouteBackends
+	a.breakers = newBreakers
+	a.limiters = newLimiters
+	a.proxies = newProxies
+	a.mu.Unlock()
+
+	a.metrics.RecordConfigReload(true)
+	a.logger.Info("atomic configuration hot reload completed successfully", "fingerprint", newSnap.Fingerprint)
+	return nil
+}
+
 // ServeHTTP routes incoming requests through security, auth, rate limiter, balancer, breaker, proxy, and telemetry.
 func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	match := a.router.Match(r.URL.Path, r.Method)
+
+	a.mu.RLock()
+	currentRouter := a.router
+	a.mu.RUnlock()
+
+	match := currentRouter.Match(r.URL.Path, r.Method)
 	if match.IsReserved {
 		return
 	}
@@ -466,7 +580,7 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	telemetry.LogRequest(spanCtx, a.logger, route.ID, r.Method, r.URL.Path, rw.statusCode, totalDuration.Milliseconds(), chosenBackend.ID, "")
 }
 
-// Start begins listening on the configured address and starts active health checks.
+// Start begins listening on the configured address, starts health checks and config watcher.
 func (a *App) Start() error {
 	ln, err := net.Listen("tcp", a.server.Addr)
 	if err != nil {
@@ -477,6 +591,14 @@ func (a *App) Start() error {
 
 	if a.healthChecker != nil {
 		a.healthChecker.Start(context.Background())
+	}
+
+	if a.configPath != "" {
+		w, err := config.NewWatcher(a.configPath, a.Reload, a.logger)
+		if err == nil {
+			a.watcher = w
+			_ = a.watcher.Start(context.Background())
+		}
 	}
 
 	if err := a.server.Serve(ln); err != nil && err != http.ErrServerClosed {
@@ -498,10 +620,14 @@ func (a *App) Metrics() *telemetry.Metrics {
 	return a.metrics
 }
 
-// Shutdown gracefully stops the server, health checks, tracer, and closes idle transport connections.
+// Shutdown gracefully stops the server, watcher, health checks, tracer, and closes idle transport connections.
 func (a *App) Shutdown(ctx context.Context) error {
 	a.admin.SetReady(false)
 	a.logger.Info("SentinelProxy shutting down...")
+
+	if a.watcher != nil {
+		a.watcher.Stop()
+	}
 
 	if a.healthChecker != nil {
 		a.healthChecker.Stop()

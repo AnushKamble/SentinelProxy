@@ -3,6 +3,7 @@ module github.com/sentinelproxy/sentinelproxy
 go 1.27.0
 
 require (
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/prometheus/client_golang v1.25.0
 	go.opentelemetry.io/otel v1.47.0
