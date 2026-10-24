@@ -44,6 +44,14 @@ func TestMetrics_RecordingAndBoundedLabels(t *testing.T) {
 		t.Errorf("expected 5xx, got %s", telemetry.FormatStatusClass(503))
 	}
 
+	// Verify method label sanitization
+	if telemetry.SanitizeMethod("GET") != "GET" {
+		t.Errorf("expected GET, got %s", telemetry.SanitizeMethod("GET"))
+	}
+	if telemetry.SanitizeMethod("MALICIOUS_CUSTOM_METHOD_1234") != "OTHER" {
+		t.Errorf("expected OTHER, got %s", telemetry.SanitizeMethod("MALICIOUS_CUSTOM_METHOD_1234"))
+	}
+
 	// Gather metrics to ensure registration succeeded without panic or label conflicts
 	mfs, err := reg.Gather()
 	if err != nil {

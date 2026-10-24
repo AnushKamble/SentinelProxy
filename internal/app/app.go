@@ -558,6 +558,7 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"error":"circuit breaker open"}`))
 		return
 	}
+	defer permit.ReleaseCancel()
 
 	obs := &BreakerPermitObserver{
 		permit:     permit,
@@ -595,9 +596,13 @@ func (a *App) Start() error {
 
 	if a.configPath != "" {
 		w, err := config.NewWatcher(a.configPath, a.Reload, a.logger)
-		if err == nil {
+		if err != nil {
+			a.logger.Warn("failed to initialize config watcher", "path", a.configPath, "err", err)
+		} else {
 			a.watcher = w
-			_ = a.watcher.Start(context.Background())
+			if err := a.watcher.Start(context.Background()); err != nil {
+				a.logger.Warn("failed to start config file watcher", "path", a.configPath, "err", err)
+			}
 		}
 	}
 
@@ -639,7 +644,9 @@ func (a *App) Shutdown(ctx context.Context) error {
 	}
 
 	if a.tracer != nil {
-		_ = a.tracer.Shutdown(ctx)
+		if err := a.tracer.Shutdown(ctx); err != nil {
+			a.logger.Warn("error shutting down tracer", "err", err)
+		}
 	}
 
 	err := a.server.Shutdown(ctx)

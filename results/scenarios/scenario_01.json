@@ -8,8 +8,8 @@
     "routes": 2
   },
   "seed": 1001,
-  "duration_ms": 14,
-  "workload_rate": "1341.54 req/s",
+  "duration_ms": 10,
+  "workload_rate": "1832.69 req/s",
   "gateway_version": "v1.0.0",
   "go_version": "go1.27.0",
   "os": "windows",
@@ -20,11 +20,11 @@
     "total_requests": 20
   },
   "derived_metrics": {
-    "latency_max_ms": 1.657,
-    "latency_p50_ms": 0.564,
-    "latency_p95_ms": 1.657,
-    "latency_p99_ms": 1.657,
+    "latency_max_ms": 1.581,
+    "latency_p50_ms": 0.544,
+    "latency_p95_ms": 1.581,
+    "latency_p99_ms": 1.581,
     "success_rate_pct": 100
   },
-  "recorded_at": "2026-10-24T20:27:43.1712946+05:30"
+  "recorded_at": "2026-10-24T21:06:49.7267104+05:30"
 }

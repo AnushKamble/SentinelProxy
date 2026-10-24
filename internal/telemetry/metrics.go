@@ -122,11 +122,22 @@ func FormatStatusClass(statusCode int) string {
 	}
 }
 
+// SanitizeMethod bounds HTTP method labels to standard verbs, preventing cardinality explosion.
+func SanitizeMethod(method string) string {
+	switch method {
+	case "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "CONNECT", "TRACE":
+		return method
+	default:
+		return "OTHER"
+	}
+}
+
 // RecordRequest records inbound gateway request metrics.
 func (m *Metrics) RecordRequest(routeID, method string, statusCode int, duration time.Duration) {
 	if m == nil {
 		return
 	}
+	method = SanitizeMethod(method)
 	sc := FormatStatusClass(statusCode)
 	m.requestsTotal.WithLabelValues(routeID, method, sc).Inc()
 	m.requestDuration.WithLabelValues(routeID, method).Observe(duration.Seconds())
