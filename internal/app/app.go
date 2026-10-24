@@ -13,6 +13,7 @@ import (
 
 	"github.com/sentinelproxy/sentinelproxy/internal/admin"
 	"github.com/sentinelproxy/sentinelproxy/internal/balancer"
+	"github.com/sentinelproxy/sentinelproxy/internal/circuitbreaker"
 	"github.com/sentinelproxy/sentinelproxy/internal/config"
 	"github.com/sentinelproxy/sentinelproxy/internal/proxy"
 	"github.com/sentinelproxy/sentinelproxy/internal/router"
@@ -26,12 +27,60 @@ type App struct {
 	server        *http.Server
 	transport     *http.Transport
 	router        *router.Router
-	balancers     map[string]balancer.Balancer   // key: route.ID
-	routeBackends map[string][]*balancer.Backend // key: route.ID
-	proxies       map[string]*proxy.ProxyHandler // key: backend.ID
+	balancers     map[string]balancer.Balancer                  // key: route.ID
+	routeBackends map[string][]*balancer.Backend                // key: route.ID
+	breakers      map[string]*circuitbreaker.CircuitBreaker     // key: routeID + "/" + backendID
+	proxies       map[string]*proxy.ProxyHandler                // key: backend.ID
 	logger        *slog.Logger
 	listener      net.Listener
 	mu            sync.RWMutex
+}
+
+type breakerEligibilityChecker struct {
+	routeID  string
+	breakers map[string]*circuitbreaker.CircuitBreaker
+}
+
+func (c *breakerEligibilityChecker) IsEligible(backendID string) bool {
+	cbKey := c.routeID + "/" + backendID
+	if cb, ok := c.breakers[cbKey]; ok {
+		// If breaker is OPEN and open duration hasn't expired, backend is not eligible
+		if cb.State() == circuitbreaker.StateOpen {
+			return false
+		}
+	}
+	return true
+}
+
+// BreakerPermitObserver wraps a circuit breaker permit in a proxy Observer.
+type BreakerPermitObserver struct {
+	permit     circuitbreaker.Permit
+	classifier *circuitbreaker.Classifier
+	statusCode int
+}
+
+func (o *BreakerPermitObserver) OnStart() {}
+
+func (o *BreakerPermitObserver) OnHeaders(status int, _ http.Header) {
+	o.statusCode = status
+}
+
+func (o *BreakerPermitObserver) OnComplete(outcome proxy.Outcome, err error) {
+	if o.permit == nil {
+		return
+	}
+
+	if outcome == proxy.OutcomeCanceled {
+		o.permit.ReleaseCancel()
+		return
+	}
+
+	isFailure := o.classifier.IsFailure(o.statusCode, err)
+	if outcome == proxy.OutcomeTimeout || outcome == proxy.OutcomeFailure || isFailure {
+		o.permit.RecordFailure()
+	} else {
+		o.permit.RecordSuccess()
+	}
 }
 
 // New creates and initializes an App from a validated configuration.
@@ -54,6 +103,7 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 	rtr := router.NewRouter(cfg.Routes)
 	balancers := make(map[string]balancer.Balancer)
 	routeBackends := make(map[string][]*balancer.Backend)
+	breakers := make(map[string]*circuitbreaker.CircuitBreaker)
 	proxies := make(map[string]*proxy.ProxyHandler)
 
 	for _, r := range cfg.Routes {
@@ -76,6 +126,12 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 			}
 			bList = append(bList, backendObj)
 
+			// Setup circuit breaker per route and backend pair
+			cbKey := r.ID + "/" + b.ID
+			breakers[cbKey] = circuitbreaker.NewCircuitBreaker(r.ID, b.ID, r.CircuitBreaker, nil, func(rt, bk string, from, to circuitbreaker.State) {
+				logger.Warn("circuit breaker state transition", "route_id", rt, "backend_id", bk, "from", from, "to", to)
+			})
+
 			if _, exists := proxies[b.ID]; !exists {
 				proxies[b.ID] = proxy.NewProxyHandler(targetURL, transport)
 			}
@@ -91,14 +147,13 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 		router:        rtr,
 		balancers:     balancers,
 		routeBackends: routeBackends,
+		breakers:      breakers,
 		proxies:       proxies,
 		logger:        logger,
 	}
 
 	mux := http.NewServeMux()
 	adminHandler.RegisterRoutes(mux)
-
-	// Fallback/routing handler for gateway traffic
 	mux.HandleFunc("/", app.serveHTTP)
 
 	app.server = &http.Server{
@@ -111,11 +166,10 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 	return app, nil
 }
 
-// ServeHTTP routes incoming requests to admin or matched backend proxy.
+// ServeHTTP routes incoming requests through router, balancer, circuit breaker, and reverse proxy.
 func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	match := a.router.Match(r.URL.Path, r.Method)
 	if match.IsReserved {
-		// Handled directly by ServeMux
 		return
 	}
 
@@ -147,8 +201,13 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Select candidate backend through load balancer
-	chosenBackend, releaseFunc, err := bal.Select(candidates, nil)
+	checker := &breakerEligibilityChecker{
+		routeID:  route.ID,
+		breakers: a.breakers,
+	}
+
+	// Select candidate backend through load balancer filtered by circuit breaker state
+	chosenBackend, releaseFunc, err := bal.Select(candidates, checker)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -157,19 +216,38 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer releaseFunc()
 
-	ph, ok := a.proxies[chosenBackend.ID]
-	if !ok {
+	cbKey := route.ID + "/" + chosenBackend.ID
+	a.mu.RLock()
+	cb := a.breakers[cbKey]
+	ph := a.proxies[chosenBackend.ID]
+	a.mu.RUnlock()
+
+	if cb == nil || ph == nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadGateway)
-		_, _ = w.Write([]byte(`{"error":"backend proxy not found"}`))
+		_, _ = w.Write([]byte(`{"error":"backend proxy or breaker not configured"}`))
 		return
 	}
 
-	// Apply route timeout to request context
+	permit, err := cb.TryAcquire()
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`{"error":"circuit breaker open"}`))
+		return
+	}
+
+	// Attach permit observer to track complete stream lifecycle
+	obs := &BreakerPermitObserver{
+		permit:     permit,
+		classifier: cb.Classifier(),
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), route.Timeout)
 	defer cancel()
 
-	ph.ServeHTTP(w, r.WithContext(ctx))
+	observedCtx := proxy.WithObserver(ctx, obs)
+	ph.ServeHTTP(w, r.WithContext(observedCtx))
 }
 
 // Start begins listening on the configured address.
