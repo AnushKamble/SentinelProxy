@@ -1,0 +1,30 @@
+{
+  "scenario_id": 5,
+  "title": "One of two same-route backends fails while the other remains eligible",
+  "passed": true,
+  "config": {
+    "backends": 2,
+    "failed_backend": "backend-s5-1",
+    "surviving_backend": "backend-s5-2"
+  },
+  "seed": 5005,
+  "duration_ms": 7,
+  "workload_rate": "1411.13 req/s",
+  "gateway_version": "v1.0.0",
+  "go_version": "go1.27.0",
+  "os": "windows",
+  "arch": "amd64",
+  "num_cpu": 32,
+  "raw_counters": {
+    "failed_backend_traffic": 0,
+    "surviving_backend_200s": 10
+  },
+  "derived_metrics": {
+    "failover_success_rate": 100,
+    "latency_max_ms": 1.611,
+    "latency_p50_ms": 0.554,
+    "latency_p95_ms": 1.611,
+    "latency_p99_ms": 1.611
+  },
+  "recorded_at": "2026-10-24T16:20:34.8088131+05:30"
+}

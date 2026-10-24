@@ -1,0 +1,29 @@
+{
+  "scenario_id": 7,
+  "title": "Healthy unrelated route remains available during failure in another route",
+  "passed": true,
+  "config": {
+    "failing_route": "/api/failing",
+    "healthy_route": "/api/healthy"
+  },
+  "seed": 7007,
+  "duration_ms": 66,
+  "workload_rate": "451.01 req/s",
+  "gateway_version": "v1.0.0",
+  "go_version": "go1.27.0",
+  "os": "windows",
+  "arch": "amd64",
+  "num_cpu": 32,
+  "raw_counters": {
+    "failing_route_reqs": 15,
+    "healthy_route_200s": 15
+  },
+  "derived_metrics": {
+    "healthy_latency_max_ms": 14.764,
+    "healthy_latency_p50_ms": 12.482,
+    "healthy_latency_p95_ms": 14.764,
+    "healthy_latency_p99_ms": 14.764,
+    "healthy_route_availability_pct": 100
+  },
+  "recorded_at": "2026-10-24T16:20:34.8856652+05:30"
+}

@@ -1,0 +1,31 @@
+{
+  "scenario_id": 10,
+  "title": "Rate limit and authentication rejections never count as upstream failures",
+  "passed": true,
+  "config": {
+    "auth_required": true,
+    "burst": 2,
+    "cb_min_samples": 3,
+    "rps": 1
+  },
+  "seed": 10010,
+  "duration_ms": 7,
+  "workload_rate": "1423.80 req/s",
+  "gateway_version": "v1.0.0",
+  "go_version": "go1.27.0",
+  "os": "windows",
+  "arch": "amd64",
+  "num_cpu": 32,
+  "raw_counters": {
+    "breaker_service_unavail": 0,
+    "status_200_ok": 2,
+    "status_401_unauthorized": 5,
+    "status_429_rate_limited": 4
+  },
+  "derived_metrics": {
+    "breaker_tripped_by_auth": false,
+    "breaker_tripped_by_ratelimit": false,
+    "rejections_isolated": true
+  },
+  "recorded_at": "2026-10-24T16:20:35.2232751+05:30"
+}

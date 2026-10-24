@@ -615,6 +615,11 @@ func (a *App) Addr() string {
 	return a.server.Addr
 }
 
+// Handler returns the root HTTP handler for the gateway.
+func (a *App) Handler() http.Handler {
+	return a.server.Handler
+}
+
 // Metrics returns the Prometheus metrics instance.
 func (a *App) Metrics() *telemetry.Metrics {
 	return a.metrics
