@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sentinelproxy/sentinelproxy/internal/config"
 )
@@ -21,16 +22,21 @@ type DiagnosticStatus struct {
 
 // Handler manages built-in administrative and diagnostic HTTP endpoints.
 type Handler struct {
-	sm      *config.SnapshotManager
-	ready   atomic.Bool
-	version string
+	sm       *config.SnapshotManager
+	gatherer prometheus.Gatherer
+	ready    atomic.Bool
+	version  string
 }
 
 // NewHandler creates a new admin Handler.
-func NewHandler(sm *config.SnapshotManager, version string) *Handler {
+func NewHandler(sm *config.SnapshotManager, version string, gatherer prometheus.Gatherer) *Handler {
+	if gatherer == nil {
+		gatherer = prometheus.DefaultGatherer
+	}
 	h := &Handler{
-		sm:      sm,
-		version: version,
+		sm:       sm,
+		gatherer: gatherer,
+		version:  version,
 	}
 	if sm != nil && sm.Get() != nil {
 		h.ready.Store(true)
@@ -48,7 +54,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/healthz", h.handleHealthz)
 	mux.HandleFunc("/readyz", h.handleReadyz)
 	mux.HandleFunc("/-/status", h.handleStatus)
-	mux.Handle("/metrics", promhttp.Handler())
+	mux.Handle("/metrics", promhttp.HandlerFor(h.gatherer, promhttp.HandlerOpts{}))
 }
 
 func (h *Handler) handleHealthz(w http.ResponseWriter, r *http.Request) {

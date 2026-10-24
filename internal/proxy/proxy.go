@@ -10,6 +10,9 @@ import (
 	"net/url"
 	"sync"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 // Outcome represents the final classification of an upstream request.
@@ -165,6 +168,8 @@ func NewProxyHandler(target *url.URL, transport http.RoundTripper) *ProxyHandler
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(target)
 			pr.SetXForwarded()
+			// Inject W3C Trace Context
+			otel.GetTextMapPropagator().Inject(pr.In.Context(), propagation.HeaderCarrier(pr.Out.Header))
 			// Ensure host header matches upstream target host
 			pr.Out.Host = target.Host
 			// Remove dangerous or unwanted hop headers

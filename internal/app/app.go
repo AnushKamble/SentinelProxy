@@ -7,10 +7,10 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/sentinelproxy/sentinelproxy/internal/admin"
 	"github.com/sentinelproxy/sentinelproxy/internal/auth"
@@ -22,6 +22,7 @@ import (
 	"github.com/sentinelproxy/sentinelproxy/internal/proxy"
 	"github.com/sentinelproxy/sentinelproxy/internal/ratelimit"
 	"github.com/sentinelproxy/sentinelproxy/internal/router"
+	"github.com/sentinelproxy/sentinelproxy/internal/telemetry"
 )
 
 // App manages the lifecycle of the SentinelProxy gateway.
@@ -40,6 +41,8 @@ type App struct {
 	limiters       map[string]*ratelimit.Limiter                 // key: route.ID
 	jwtVerifier    auth.Verifier
 	keyExtractor   *ratelimit.KeyExtractor
+	metrics        *telemetry.Metrics
+	tracer         *telemetry.TracerManager
 	proxies        map[string]*proxy.ProxyHandler                // key: backend.ID
 	logger         *slog.Logger
 	listener       net.Listener
@@ -66,35 +69,60 @@ func (c *backendEligibilityChecker) IsEligible(backendID string) bool {
 	return true
 }
 
-// BreakerPermitObserver wraps a circuit breaker permit in a proxy Observer.
+// BreakerPermitObserver wraps a circuit breaker permit in a proxy Observer with metrics.
 type BreakerPermitObserver struct {
 	permit     circuitbreaker.Permit
 	classifier *circuitbreaker.Classifier
+	metrics    *telemetry.Metrics
+	routeID    string
+	backendID  string
+	startTime  time.Time
 	statusCode int
 }
 
-func (o *BreakerPermitObserver) OnStart() {}
+func (o *BreakerPermitObserver) OnStart() {
+	o.startTime = time.Now()
+}
 
 func (o *BreakerPermitObserver) OnHeaders(status int, _ http.Header) {
 	o.statusCode = status
 }
 
 func (o *BreakerPermitObserver) OnComplete(outcome proxy.Outcome, err error) {
-	if o.permit == nil {
-		return
+	upstreamDuration := time.Since(o.startTime)
+	outcomeStr := "success"
+
+	if o.permit != nil {
+		if outcome == proxy.OutcomeCanceled {
+			outcomeStr = "canceled"
+			o.permit.ReleaseCancel()
+		} else {
+			isFailure := o.classifier.IsFailure(o.statusCode, err)
+			if outcome == proxy.OutcomeTimeout {
+				outcomeStr = "timeout"
+				o.permit.RecordFailure()
+			} else if outcome == proxy.OutcomeFailure || isFailure {
+				outcomeStr = "failure"
+				o.permit.RecordFailure()
+			} else {
+				o.permit.RecordSuccess()
+			}
+		}
 	}
 
-	if outcome == proxy.OutcomeCanceled {
-		o.permit.ReleaseCancel()
-		return
+	if o.metrics != nil {
+		o.metrics.RecordUpstream(o.routeID, o.backendID, outcomeStr, o.statusCode, upstreamDuration)
 	}
+}
 
-	isFailure := o.classifier.IsFailure(o.statusCode, err)
-	if outcome == proxy.OutcomeTimeout || outcome == proxy.OutcomeFailure || isFailure {
-		o.permit.RecordFailure()
-	} else {
-		o.permit.RecordSuccess()
-	}
+type statusResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (w *statusResponseWriter) WriteHeader(code int) {
+	w.statusCode = code
+	w.ResponseWriter.WriteHeader(code)
 }
 
 // New creates and initializes an App from a validated configuration.
@@ -105,11 +133,14 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 	}
 
 	sm := config.NewSnapshotManager(snap)
-	adminHandler := admin.NewHandler(sm, "v1.0.0")
+	metrics := telemetry.NewMetrics(nil)
+	adminHandler := admin.NewHandler(sm, "v1.0.0", metrics.Registry)
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
+	logger := telemetry.NewLogger(cfg.Observability.LogLevel, cfg.Observability.LogFormat)
+	tracer, err := telemetry.NewTracerManager(cfg.Observability.Tracing.ServiceName, cfg.Observability.Tracing.SamplingRatio)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize tracer: %w", err)
+	}
 
 	tpCfg := proxy.DefaultTransportConfig()
 	transport := proxy.NewPooledTransport(tpCfg)
@@ -128,7 +159,6 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 		return nil, fmt.Errorf("invalid trusted_proxy_cidrs: %w", err)
 	}
 
-	// Initialize JWT verifier if any route requires authentication
 	var jwtVerifier auth.Verifier
 	needsAuth := cfg.Security.JWT.Enabled
 	for _, r := range cfg.Routes {
@@ -172,8 +202,11 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 
 			cbKey := r.ID + "/" + b.ID
 			breakers[cbKey] = circuitbreaker.NewCircuitBreaker(r.ID, b.ID, r.CircuitBreaker, nil, func(rt, bk string, from, to circuitbreaker.State) {
+				metrics.RecordCircuitBreakerTransition(rt, bk, string(from), string(to))
+				metrics.SetCircuitBreakerState(rt, bk, string(to))
 				logger.Warn("circuit breaker state transition", "route_id", rt, "backend_id", bk, "from", from, "to", to)
 			})
+			metrics.SetCircuitBreakerState(r.ID, b.ID, "CLOSED")
 
 			if r.HealthCheck.Path != "" {
 				probeURL := strings.TrimSuffix(b.URL, "/") + r.HealthCheck.Path
@@ -184,6 +217,7 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 					Config:    r.HealthCheck,
 				})
 			}
+			metrics.SetBackendHealth(r.ID, b.ID, true)
 
 			if _, exists := proxies[b.ID]; !exists {
 				proxies[b.ID] = proxy.NewProxyHandler(targetURL, transport)
@@ -193,6 +227,7 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 	}
 
 	checker := health.NewChecker(healthReg, probeTargets, func(rt, bk string, healthy bool) {
+		metrics.SetBackendHealth(rt, bk, healthy)
 		logger.Warn("backend health state change", "route_id", rt, "backend_id", bk, "healthy", healthy)
 	})
 
@@ -210,6 +245,8 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 		limiters:       limiters,
 		jwtVerifier:    jwtVerifier,
 		keyExtractor:   keyExtractor,
+		metrics:        metrics,
+		tracer:         tracer,
 		proxies:        proxies,
 		logger:         logger,
 	}
@@ -218,7 +255,6 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 	adminHandler.RegisterRoutes(mux)
 	mux.HandleFunc("/", app.serveHTTP)
 
-	// Wrap root with defensive security headers
 	securedHandler := middleware.SecurityHeadersMiddleware(mux)
 
 	app.server = &http.Server{
@@ -231,29 +267,14 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 	return app, nil
 }
 
-// ServeHTTP routes incoming requests through security, auth, rate limiter, balancer, breaker, and proxy.
+// ServeHTTP routes incoming requests through security, auth, rate limiter, balancer, breaker, proxy, and telemetry.
 func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
 	match := a.router.Match(r.URL.Path, r.Method)
 	if match.IsReserved {
 		return
 	}
 
-	if !match.PathMatched {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(`{"error":"Not Found"}`))
-		return
-	}
-
-	if !match.MethodAllowed {
-		w.Header().Set("Allow", strings.Join(match.AllowedMethods, ", "))
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		_, _ = w.Write([]byte(`{"error":"Method Not Allowed"}`))
-		return
-	}
-
-	route := match.Route
 	snap := a.sm.Get()
 	headerName := "X-Request-ID"
 	if snap != nil && snap.Config != nil && snap.Config.Security.RequestIDHeader != "" {
@@ -263,12 +284,44 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(headerName, reqID)
 	reqCtx := middleware.WithRequestID(r.Context(), reqID)
 
+	routeID := "unknown"
+	if match.Route != nil {
+		routeID = match.Route.ID
+	}
+
+	spanCtx, span := a.tracer.StartInboundSpan(r.WithContext(reqCtx), routeID)
+	defer span.End()
+
+	if !match.PathMatched {
+		duration := time.Since(start)
+		a.metrics.RecordRequest("unknown", r.Method, http.StatusNotFound, duration)
+		telemetry.LogRequest(spanCtx, a.logger, "unknown", r.Method, r.URL.Path, http.StatusNotFound, duration.Milliseconds(), "", "not_found")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error":"Not Found"}`))
+		return
+	}
+
+	if !match.MethodAllowed {
+		duration := time.Since(start)
+		a.metrics.RecordRequest(routeID, r.Method, http.StatusMethodNotAllowed, duration)
+		telemetry.LogRequest(spanCtx, a.logger, routeID, r.Method, r.URL.Path, http.StatusMethodNotAllowed, duration.Milliseconds(), "", "method_not_allowed")
+		w.Header().Set("Allow", strings.Join(match.AllowedMethods, ", "))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		_, _ = w.Write([]byte(`{"error":"Method Not Allowed"}`))
+		return
+	}
+
+	route := match.Route
 	var authenticatedSub string
 
 	// Enforce JWT authentication if route requires it
 	if route.AuthRequired {
 		if a.jwtVerifier == nil {
-			// Fail closed if verifier is unconfigured
+			duration := time.Since(start)
+			a.metrics.RecordRequest(route.ID, r.Method, http.StatusUnauthorized, duration)
+			telemetry.LogRequest(spanCtx, a.logger, route.ID, r.Method, r.URL.Path, http.StatusUnauthorized, duration.Milliseconds(), "", "unauthorized_no_verifier")
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
@@ -277,6 +330,9 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 
 		authHeader := r.Header.Get("Authorization")
 		if !strings.HasPrefix(authHeader, "Bearer ") {
+			duration := time.Since(start)
+			a.metrics.RecordRequest(route.ID, r.Method, http.StatusUnauthorized, duration)
+			telemetry.LogRequest(spanCtx, a.logger, route.ID, r.Method, r.URL.Path, http.StatusUnauthorized, duration.Milliseconds(), "", "unauthorized_missing_token")
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
@@ -286,6 +342,9 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 		claims, err := a.jwtVerifier.Verify(tokenStr)
 		if err != nil {
+			duration := time.Since(start)
+			a.metrics.RecordRequest(route.ID, r.Method, http.StatusUnauthorized, duration)
+			telemetry.LogRequest(spanCtx, a.logger, route.ID, r.Method, r.URL.Path, http.StatusUnauthorized, duration.Milliseconds(), "", "unauthorized_invalid_token")
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
@@ -306,7 +365,13 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		if limiter != nil {
 			clientKey := a.keyExtractor.ExtractKey(r, authenticatedSub)
 			allowed, retryAfter := limiter.Allow(clientKey)
+			a.metrics.RecordRateLimitDecision(route.ID, allowed)
+
 			if !allowed {
+				duration := time.Since(start)
+				a.metrics.RecordRequest(route.ID, r.Method, http.StatusTooManyRequests, duration)
+				telemetry.LogRequest(spanCtx, a.logger, route.ID, r.Method, r.URL.Path, http.StatusTooManyRequests, duration.Milliseconds(), "", "rate_limited")
+
 				retrySeconds := int(retryAfter.Seconds())
 				if retrySeconds < 1 {
 					retrySeconds = 1
@@ -326,6 +391,9 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	a.mu.RUnlock()
 
 	if bal == nil || len(candidates) == 0 {
+		duration := time.Since(start)
+		a.metrics.RecordRequest(route.ID, r.Method, http.StatusServiceUnavailable, duration)
+		telemetry.LogRequest(spanCtx, a.logger, route.ID, r.Method, r.URL.Path, http.StatusServiceUnavailable, duration.Milliseconds(), "", "no_backends")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_, _ = w.Write([]byte(`{"error":"no backends available"}`))
@@ -338,9 +406,11 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		health:   a.healthRegistry,
 	}
 
-	// Select candidate backend through load balancer filtered by health and circuit breaker state
 	chosenBackend, releaseFunc, err := bal.Select(candidates, checker)
 	if err != nil {
+		duration := time.Since(start)
+		a.metrics.RecordRequest(route.ID, r.Method, http.StatusServiceUnavailable, duration)
+		telemetry.LogRequest(spanCtx, a.logger, route.ID, r.Method, r.URL.Path, http.StatusServiceUnavailable, duration.Milliseconds(), "", "no_eligible_backends")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_, _ = w.Write([]byte(`{"error":"no eligible backend candidate available"}`))
@@ -355,6 +425,9 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	a.mu.RUnlock()
 
 	if cb == nil || ph == nil {
+		duration := time.Since(start)
+		a.metrics.RecordRequest(route.ID, r.Method, http.StatusBadGateway, duration)
+		telemetry.LogRequest(spanCtx, a.logger, route.ID, r.Method, r.URL.Path, http.StatusBadGateway, duration.Milliseconds(), chosenBackend.ID, "proxy_missing")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadGateway)
 		_, _ = w.Write([]byte(`{"error":"backend proxy or breaker not configured"}`))
@@ -363,23 +436,34 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 
 	permit, err := cb.TryAcquire()
 	if err != nil {
+		duration := time.Since(start)
+		a.metrics.RecordRequest(route.ID, r.Method, http.StatusServiceUnavailable, duration)
+		telemetry.LogRequest(spanCtx, a.logger, route.ID, r.Method, r.URL.Path, http.StatusServiceUnavailable, duration.Milliseconds(), chosenBackend.ID, "breaker_open")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_, _ = w.Write([]byte(`{"error":"circuit breaker open"}`))
 		return
 	}
 
-	// Attach permit observer to track complete stream lifecycle
 	obs := &BreakerPermitObserver{
 		permit:     permit,
 		classifier: cb.Classifier(),
+		metrics:    a.metrics,
+		routeID:    route.ID,
+		backendID:  chosenBackend.ID,
 	}
 
-	ctx, cancel := context.WithTimeout(reqCtx, route.Timeout)
+	ctx, cancel := context.WithTimeout(spanCtx, route.Timeout)
 	defer cancel()
 
 	observedCtx := proxy.WithObserver(ctx, obs)
-	ph.ServeHTTP(w, r.WithContext(observedCtx))
+	rw := &statusResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+
+	ph.ServeHTTP(rw, r.WithContext(observedCtx))
+
+	totalDuration := time.Since(start)
+	a.metrics.RecordRequest(route.ID, r.Method, rw.statusCode, totalDuration)
+	telemetry.LogRequest(spanCtx, a.logger, route.ID, r.Method, r.URL.Path, rw.statusCode, totalDuration.Milliseconds(), chosenBackend.ID, "")
 }
 
 // Start begins listening on the configured address and starts active health checks.
@@ -409,13 +493,22 @@ func (a *App) Addr() string {
 	return a.server.Addr
 }
 
-// Shutdown gracefully stops the server, health checks, and closes idle transport connections.
+// Metrics returns the Prometheus metrics instance.
+func (a *App) Metrics() *telemetry.Metrics {
+	return a.metrics
+}
+
+// Shutdown gracefully stops the server, health checks, tracer, and closes idle transport connections.
 func (a *App) Shutdown(ctx context.Context) error {
 	a.admin.SetReady(false)
 	a.logger.Info("SentinelProxy shutting down...")
 
 	if a.healthChecker != nil {
 		a.healthChecker.Stop()
+	}
+
+	if a.tracer != nil {
+		_ = a.tracer.Shutdown(ctx)
 	}
 
 	err := a.server.Shutdown(ctx)
