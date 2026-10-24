@@ -1,0 +1,28 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test and coverage artifacts
+*.out
+*.test
+coverage.html
+profile.pprof
+
+# Environment variables & secrets
+.env
+*.local.env
+
+# Benchmark and loadgen results
+# (Keep tracked templates / samples, ignore ad-hoc dumps if needed)
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/

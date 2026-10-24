@@ -1,0 +1,95 @@
+server:
+  listen_addr: "127.0.0.1:8080"
+  read_header_timeout: 5s
+  idle_timeout: 60s
+  shutdown_timeout: 10s
+
+observability:
+  log_level: info
+  log_format: json
+  metrics_path: /metrics
+  tracing:
+    enabled: true
+    service_name: sentinelproxy
+    otlp_endpoint: ""
+    sampling_ratio: 1.0
+
+security:
+  request_id_header: X-Request-ID
+  trusted_proxy_cidrs:
+    - "127.0.0.1/32"
+    - "::1/128"
+  jwt:
+    enabled: false
+    algorithm: HS256
+    issuer: "sentinelproxy-demo"
+    audience: "sentinelproxy-api"
+    secret_env: SENTINELPROXY_JWT_SECRET
+
+routes:
+  - id: payments
+    path_prefix: /api/payments
+    methods: [GET, POST]
+    auth_required: true
+    load_balancer: least_connections
+    timeout: 2s
+    rate_limit:
+      enabled: true
+      requests_per_second: 100
+      burst: 200
+    circuit_breaker:
+      enabled: true
+      window: 10s
+      bucket_count: 10
+      minimum_requests: 20
+      failure_rate_threshold: 0.5
+      open_duration: 5s
+      half_open_max_probes: 2
+      half_open_successes_to_close: 2
+      counted_status_codes: [500, 502, 503, 504]
+    health_check:
+      path: /healthz
+      interval: 2s
+      timeout: 500ms
+      healthy_status_codes: [200]
+      unhealthy_threshold: 3
+      healthy_threshold: 2
+    backends:
+      - id: payments-a
+        url: http://127.0.0.1:9001
+        weight: 1
+      - id: payments-b
+        url: http://127.0.0.1:9002
+        weight: 1
+
+  - id: reviews
+    path_prefix: /api/reviews
+    methods: [GET, POST]
+    auth_required: false
+    load_balancer: round_robin
+    timeout: 1s
+    rate_limit:
+      enabled: false
+      requests_per_second: 50
+      burst: 50
+    circuit_breaker:
+      enabled: true
+      window: 10s
+      bucket_count: 10
+      minimum_requests: 5
+      failure_rate_threshold: 0.5
+      open_duration: 3s
+      half_open_max_probes: 1
+      half_open_successes_to_close: 1
+      counted_status_codes: [500, 502, 503, 504]
+    health_check:
+      path: /healthz
+      interval: 2s
+      timeout: 500ms
+      healthy_status_codes: [200]
+      unhealthy_threshold: 3
+      healthy_threshold: 2
+    backends:
+      - id: reviews-a
+        url: http://127.0.0.1:9003
+        weight: 1
