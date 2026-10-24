@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/sentinelproxy/sentinelproxy/internal/config"
 	"github.com/sentinelproxy/sentinelproxy/internal/health"
 	"github.com/sentinelproxy/sentinelproxy/internal/proxy"
+	"github.com/sentinelproxy/sentinelproxy/internal/ratelimit"
 	"github.com/sentinelproxy/sentinelproxy/internal/router"
 )
 
@@ -33,6 +35,8 @@ type App struct {
 	breakers       map[string]*circuitbreaker.CircuitBreaker     // key: routeID + "/" + backendID
 	healthRegistry *health.Registry
 	healthChecker  *health.Checker
+	limiters       map[string]*ratelimit.Limiter                 // key: route.ID
+	keyExtractor   *ratelimit.KeyExtractor
 	proxies        map[string]*proxy.ProxyHandler                // key: backend.ID
 	logger         *slog.Logger
 	listener       net.Listener
@@ -46,15 +50,12 @@ type backendEligibilityChecker struct {
 }
 
 func (c *backendEligibilityChecker) IsEligible(backendID string) bool {
-	// 1. Check active health state
 	if c.health != nil && !c.health.IsHealthy(c.routeID, backendID) {
 		return false
 	}
 
-	// 2. Check circuit breaker state
 	cbKey := c.routeID + "/" + backendID
 	if cb, ok := c.breakers[cbKey]; ok {
-		// If breaker is OPEN and open duration hasn't expired, backend is not eligible
 		if cb.State() == circuitbreaker.StateOpen {
 			return false
 		}
@@ -114,15 +115,25 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 	balancers := make(map[string]balancer.Balancer)
 	routeBackends := make(map[string][]*balancer.Backend)
 	breakers := make(map[string]*circuitbreaker.CircuitBreaker)
+	limiters := make(map[string]*ratelimit.Limiter)
 	proxies := make(map[string]*proxy.ProxyHandler)
 	healthReg := health.NewRegistry()
 	var probeTargets []health.ProbeTarget
+
+	keyExtractor, err := ratelimit.NewKeyExtractor(cfg.Security.TrustedProxyCIDRs)
+	if err != nil {
+		return nil, fmt.Errorf("invalid trusted_proxy_cidrs: %w", err)
+	}
 
 	for _, r := range cfg.Routes {
 		if r.LoadBalancer == "least_connections" {
 			balancers[r.ID] = balancer.NewLeastConnectionsBalancer()
 		} else {
 			balancers[r.ID] = balancer.NewRoundRobinBalancer()
+		}
+
+		if r.RateLimit.Enabled {
+			limiters[r.ID] = ratelimit.NewLimiter(r.ID, r.RateLimit, nil)
 		}
 
 		var bList []*balancer.Backend
@@ -138,13 +149,11 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 			}
 			bList = append(bList, backendObj)
 
-			// Setup circuit breaker per route and backend pair
 			cbKey := r.ID + "/" + b.ID
 			breakers[cbKey] = circuitbreaker.NewCircuitBreaker(r.ID, b.ID, r.CircuitBreaker, nil, func(rt, bk string, from, to circuitbreaker.State) {
 				logger.Warn("circuit breaker state transition", "route_id", rt, "backend_id", bk, "from", from, "to", to)
 			})
 
-			// Setup health check target if configured
 			if r.HealthCheck.Path != "" {
 				probeURL := strings.TrimSuffix(b.URL, "/") + r.HealthCheck.Path
 				probeTargets = append(probeTargets, health.ProbeTarget{
@@ -177,6 +186,8 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 		breakers:       breakers,
 		healthRegistry: healthReg,
 		healthChecker:  checker,
+		limiters:       limiters,
+		keyExtractor:   keyExtractor,
 		proxies:        proxies,
 		logger:         logger,
 	}
@@ -195,7 +206,7 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 	return app, nil
 }
 
-// ServeHTTP routes incoming requests through router, balancer, circuit breaker, and reverse proxy.
+// ServeHTTP routes incoming requests through router, rate limiter, balancer, circuit breaker, and reverse proxy.
 func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	match := a.router.Match(r.URL.Path, r.Method)
 	if match.IsReserved {
@@ -218,6 +229,30 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	route := match.Route
+
+	// Enforce local token-bucket rate limiting if enabled for this route
+	if route.RateLimit.Enabled {
+		a.mu.RLock()
+		limiter := a.limiters[route.ID]
+		a.mu.RUnlock()
+
+		if limiter != nil {
+			clientKey := a.keyExtractor.ExtractKey(r, "")
+			allowed, retryAfter := limiter.Allow(clientKey)
+			if !allowed {
+				retrySeconds := int(retryAfter.Seconds())
+				if retrySeconds < 1 {
+					retrySeconds = 1
+				}
+				w.Header().Set("Retry-After", strconv.Itoa(retrySeconds))
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusTooManyRequests)
+				_, _ = w.Write([]byte(`{"error":"rate limit exceeded"}`))
+				return
+			}
+		}
+	}
+
 	a.mu.RLock()
 	bal := a.balancers[route.ID]
 	candidates := a.routeBackends[route.ID]
@@ -289,7 +324,6 @@ func (a *App) Start() error {
 	a.listener = ln
 	a.logger.Info("SentinelProxy started", "addr", ln.Addr().String())
 
-	// Start active health checking in background
 	if a.healthChecker != nil {
 		a.healthChecker.Start(context.Background())
 	}
@@ -313,7 +347,6 @@ func (a *App) Shutdown(ctx context.Context) error {
 	a.admin.SetReady(false)
 	a.logger.Info("SentinelProxy shutting down...")
 
-	// Stop health checking goroutines promptly
 	if a.healthChecker != nil {
 		a.healthChecker.Stop()
 	}
