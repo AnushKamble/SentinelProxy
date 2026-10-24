@@ -13,13 +13,13 @@ import (
 
 // FaultConfig defines runtime fault injection settings for the mock backend.
 type FaultConfig struct {
-	DelayMs         int     `json:"delay_ms"`
-	FailureRate     float64 `json:"failure_rate"`
-	FailureStatus   int     `json:"failure_status"`
-	Hang            bool    `json:"hang"`
-	HealthHealthy   bool    `json:"health_healthy"`
-	HealthStatus    int     `json:"health_status"`
-	Seed            int64   `json:"seed"`
+	DelayMs       int     `json:"delay_ms"`
+	FailureRate   float64 `json:"failure_rate"`
+	FailureStatus int     `json:"failure_status"`
+	Hang          bool    `json:"hang"`
+	HealthHealthy bool    `json:"health_healthy"`
+	HealthStatus  int     `json:"health_status"`
+	Seed          int64   `json:"seed"`
 }
 
 // Server is a test mock backend with programmatic fault injection.

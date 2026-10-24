@@ -1,6 +1,6 @@
 run_index,condition,target_url,concurrency,duration_ms,total_requests,success_requests,failure_requests,throughput_rps,p50_ms,p90_ms,p95_ms,p99_ms,min_ms,max_ms,mean_ms
-1,condition_A_healthy_baseline,http://127.0.0.1:57348/api/primary,8,1502,7102,7102,0,4728.11,1.65,2.30,2.47,2.94,0.00,8.79,1.61
-2,condition_A_healthy_baseline,http://127.0.0.1:57348/api/primary,8,1501,8164,8164,0,5435.58,1.26,2.20,2.38,2.90,0.00,11.03,1.41
-3,condition_A_healthy_baseline,http://127.0.0.1:57348/api/primary,8,1500,8282,8282,0,5517.94,1.25,2.24,2.46,2.92,0.00,3.84,1.39
-4,condition_A_healthy_baseline,http://127.0.0.1:57348/api/primary,8,1501,9414,9414,0,6268.40,1.14,2.17,2.38,2.79,0.00,3.80,1.22
-5,condition_A_healthy_baseline,http://127.0.0.1:57348/api/primary,8,1502,10611,10611,0,7061.25,1.09,2.05,2.30,2.76,0.00,3.78,1.08
+1,condition_A_healthy_baseline,http://127.0.0.1:54785/api/primary,8,1501,6980,6980,0,4648.04,1.65,2.31,2.52,3.05,0.00,4.52,1.62
+2,condition_A_healthy_baseline,http://127.0.0.1:54785/api/primary,8,1502,8470,8470,0,5638.62,1.23,2.10,2.30,2.74,0.00,4.80,1.36
+3,condition_A_healthy_baseline,http://127.0.0.1:54785/api/primary,8,1502,9863,9863,0,6563.79,1.14,1.82,2.13,2.46,0.00,3.35,1.17
+4,condition_A_healthy_baseline,http://127.0.0.1:54785/api/primary,8,1502,10568,10568,0,7035.51,1.11,1.87,2.21,2.66,0.00,3.69,1.09
+5,condition_A_healthy_baseline,http://127.0.0.1:54785/api/primary,8,1502,12182,12182,0,8107.67,0.69,1.75,2.14,2.45,0.00,7.50,0.95

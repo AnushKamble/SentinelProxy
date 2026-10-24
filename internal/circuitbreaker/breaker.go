@@ -30,18 +30,18 @@ type StateChangeHook func(routeID string, backendID string, from State, to State
 
 // CircuitBreaker manages fault isolation for a specific route/backend pair.
 type CircuitBreaker struct {
-	mu                     sync.Mutex
-	RouteID                string
-	BackendID              string
-	cfg                    config.CircuitBreakerConfig
-	clock                  Clock
-	classifier             *Classifier
-	window                 *SlidingWindow
-	state                  State
-	openedAt               time.Time
-	activeHalfOpenProbes   int
-	halfOpenSuccesses      int
-	onStateChange          StateChangeHook
+	mu                   sync.Mutex
+	RouteID              string
+	BackendID            string
+	cfg                  config.CircuitBreakerConfig
+	clock                Clock
+	classifier           *Classifier
+	window               *SlidingWindow
+	state                State
+	openedAt             time.Time
+	activeHalfOpenProbes int
+	halfOpenSuccesses    int
+	onStateChange        StateChangeHook
 }
 
 // NewCircuitBreaker creates a circuit breaker instance.

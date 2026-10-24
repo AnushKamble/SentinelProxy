@@ -10,11 +10,11 @@ import (
 )
 
 var (
-	testSecret        = []byte("test-super-secret-key-minimum-32-chars-long")
-	wrongSecret       = []byte("different-secret-key-32-chars-long-abcdef")
-	validIssuer       = "sentinelproxy-auth"
-	validAudience     = "sentinelproxy-clients"
-	validSubject      = "user-12345"
+	testSecret    = []byte("test-super-secret-key-minimum-32-chars-long")
+	wrongSecret   = []byte("different-secret-key-32-chars-long-abcdef")
+	validIssuer   = "sentinelproxy-auth"
+	validAudience = "sentinelproxy-clients"
+	validSubject  = "user-12345"
 )
 
 func TestHMACVerifier_PositiveAndNegativeMatrix(t *testing.T) {

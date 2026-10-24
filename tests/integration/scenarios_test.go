@@ -986,10 +986,10 @@ func TestScenario07_BlastRadiusIsolation(t *testing.T) {
 		},
 		DerivedMetrics: map[string]any{
 			"healthy_route_availability_pct": 100.0,
-			"healthy_latency_p50_ms":          p50,
-			"healthy_latency_p95_ms":          p95,
-			"healthy_latency_p99_ms":          p99,
-			"healthy_latency_max_ms":          maxLat,
+			"healthy_latency_p50_ms":         p50,
+			"healthy_latency_p95_ms":         p95,
+			"healthy_latency_p99_ms":         p99,
+			"healthy_latency_max_ms":         maxLat,
 		},
 	})
 }
@@ -1126,7 +1126,7 @@ func TestScenario08_BackendRecoversHalfOpenProbesPass(t *testing.T) {
 		DurationMs:   duration.Milliseconds(),
 		WorkloadRate: fmt.Sprintf("%.2f req/s", float64(11)/(duration.Seconds())),
 		RawCounters: map[string]any{
-			"probe_successes":        2,
+			"probe_successes":         2,
 			"post_recovery_successes": postRecovery200s,
 		},
 		DerivedMetrics: map[string]any{
@@ -1432,10 +1432,10 @@ func TestScenario10_RateLimitAndAuthNeverCountAsBreakerFailures(t *testing.T) {
 		DurationMs:   duration.Milliseconds(),
 		WorkloadRate: fmt.Sprintf("%.2f req/s", float64(11)/(duration.Seconds())),
 		RawCounters: map[string]any{
-			"status_401_unauthorized":   statusCounts[401],
-			"status_200_ok":             statusCounts[200],
-			"status_429_rate_limited":   statusCounts[429],
-			"breaker_service_unavail":   statusCounts[503],
+			"status_401_unauthorized": statusCounts[401],
+			"status_200_ok":           statusCounts[200],
+			"status_429_rate_limited": statusCounts[429],
+			"breaker_service_unavail": statusCounts[503],
 		},
 		DerivedMetrics: map[string]any{
 			"breaker_tripped_by_auth":      false,

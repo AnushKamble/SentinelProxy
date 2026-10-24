@@ -94,7 +94,7 @@ func NewLimiter(routeID string, cfg config.RateLimitConfig, clk Clock) *Limiter 
 		routeID:     routeID,
 		cfg:         cfg,
 		clock:       clk,
-		maxEntries:  10000,           // Hard upper bound on key memory
+		maxEntries:  10000,            // Hard upper bound on key memory
 		idleTimeout: 10 * time.Minute, // Idle eviction timeout
 		buckets:     make(map[string]*TokenBucket),
 	}

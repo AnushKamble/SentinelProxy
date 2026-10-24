@@ -33,17 +33,17 @@ type App struct {
 	server         *http.Server
 	transport      *http.Transport
 	router         *router.Router
-	balancers      map[string]balancer.Balancer                  // key: route.ID
-	routeBackends  map[string][]*balancer.Backend                // key: route.ID
-	breakers       map[string]*circuitbreaker.CircuitBreaker     // key: routeID + "/" + backendID
+	balancers      map[string]balancer.Balancer              // key: route.ID
+	routeBackends  map[string][]*balancer.Backend            // key: route.ID
+	breakers       map[string]*circuitbreaker.CircuitBreaker // key: routeID + "/" + backendID
 	healthRegistry *health.Registry
 	healthChecker  *health.Checker
-	limiters       map[string]*ratelimit.Limiter                 // key: route.ID
+	limiters       map[string]*ratelimit.Limiter // key: route.ID
 	jwtVerifier    auth.Verifier
 	keyExtractor   *ratelimit.KeyExtractor
 	metrics        *telemetry.Metrics
 	tracer         *telemetry.TracerManager
-	proxies        map[string]*proxy.ProxyHandler                // key: backend.ID
+	proxies        map[string]*proxy.ProxyHandler // key: backend.ID
 	logger         *slog.Logger
 	listener       net.Listener
 	watcher        *config.Watcher

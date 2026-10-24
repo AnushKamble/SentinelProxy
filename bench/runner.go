@@ -41,24 +41,24 @@ type RequestRecord struct {
 
 // RunStats summarizes a completed benchmark run.
 type RunStats struct {
-	RunIndex           int              `json:"run_index"`
-	Name               string           `json:"name"`
-	TargetURL          string           `json:"target_url"`
-	Concurrency        int              `json:"concurrency"`
-	ActualDurationMs   int64            `json:"actual_duration_ms"`
-	TotalRequests      int64            `json:"total_requests"`
-	SuccessRequests    int64            `json:"success_requests"`
-	FailureRequests    int64            `json:"failure_requests"`
-	ThroughputRPS      float64          `json:"throughput_rps"`
-	StatusDistribution map[int]int64    `json:"status_distribution"`
-	LatencyP50Ms       float64          `json:"latency_p50_ms"`
-	LatencyP90Ms       float64          `json:"latency_p90_ms"`
-	LatencyP95Ms       float64          `json:"latency_p95_ms"`
-	LatencyP99Ms       float64          `json:"latency_p99_ms"`
-	LatencyMinMs       float64          `json:"latency_min_ms"`
-	LatencyMaxMs       float64          `json:"latency_max_ms"`
-	LatencyMeanMs      float64          `json:"latency_mean_ms"`
-	Records            []RequestRecord  `json:"-"` // omit detailed raw records in summary json
+	RunIndex           int             `json:"run_index"`
+	Name               string          `json:"name"`
+	TargetURL          string          `json:"target_url"`
+	Concurrency        int             `json:"concurrency"`
+	ActualDurationMs   int64           `json:"actual_duration_ms"`
+	TotalRequests      int64           `json:"total_requests"`
+	SuccessRequests    int64           `json:"success_requests"`
+	FailureRequests    int64           `json:"failure_requests"`
+	ThroughputRPS      float64         `json:"throughput_rps"`
+	StatusDistribution map[int]int64   `json:"status_distribution"`
+	LatencyP50Ms       float64         `json:"latency_p50_ms"`
+	LatencyP90Ms       float64         `json:"latency_p90_ms"`
+	LatencyP95Ms       float64         `json:"latency_p95_ms"`
+	LatencyP99Ms       float64         `json:"latency_p99_ms"`
+	LatencyMinMs       float64         `json:"latency_min_ms"`
+	LatencyMaxMs       float64         `json:"latency_max_ms"`
+	LatencyMeanMs      float64         `json:"latency_mean_ms"`
+	Records            []RequestRecord `json:"-"` // omit detailed raw records in summary json
 }
 
 // ExperimentSummary aggregates statistics across multiple repeated runs of a condition.

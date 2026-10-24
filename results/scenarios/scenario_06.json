@@ -7,8 +7,8 @@
     "route_timeout": "3s"
   },
   "seed": 6006,
-  "duration_ms": 3,
-  "workload_rate": "3054.27 req/s",
+  "duration_ms": 2,
+  "workload_rate": "3595.96 req/s",
   "gateway_version": "v1.0.0",
   "go_version": "go1.27.0",
   "os": "windows",
@@ -18,13 +18,13 @@
     "status_503": 10
   },
   "derived_metrics": {
-    "latency_max_ms": 0.566,
-    "latency_p50_ms": 0.531,
-    "latency_p95_ms": 0.566,
-    "latency_p99_ms": 0.566,
-    "saved_budget_pct": 99.99,
+    "latency_max_ms": 0.577,
+    "latency_p50_ms": 0.539,
+    "latency_p95_ms": 0.577,
+    "latency_p99_ms": 0.577,
+    "saved_budget_pct": 99.99333333333334,
     "theoretical_timeout_ms": 30000,
-    "total_duration_ms": 3
+    "total_duration_ms": 2
   },
-  "recorded_at": "2026-10-24T16:20:34.816973+05:30"
+  "recorded_at": "2026-10-24T20:27:43.6664352+05:30"
 }

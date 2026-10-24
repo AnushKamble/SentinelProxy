@@ -6,9 +6,9 @@ import (
 )
 
 var sensitiveHeaders = map[string]bool{
-	"authorization": true,
-	"cookie":        true,
-	"set-cookie":    true,
+	"authorization":       true,
+	"cookie":              true,
+	"set-cookie":          true,
 	"proxy-authorization": true,
 }
 

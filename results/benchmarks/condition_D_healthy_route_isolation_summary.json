@@ -1,118 +1,118 @@
 {
   "condition_name": "condition_D_healthy_route_isolation",
   "num_runs": 5,
-  "throughput_median_rps": 6236.053799604558,
-  "throughput_min_rps": 5200.968983396979,
-  "throughput_max_rps": 7856.4746447202615,
-  "latency_p50_median_ms": 1.132,
-  "latency_p95_median_ms": 2.438,
-  "latency_p99_median_ms": 2.933,
+  "throughput_median_rps": 7194.664410790388,
+  "throughput_min_rps": 5939.002411346809,
+  "throughput_max_rps": 9362.927533031012,
+  "latency_p50_median_ms": 1.08,
+  "latency_p95_median_ms": 2.21,
+  "latency_p99_median_ms": 2.644,
   "success_rate_median_pct": 100,
   "runs": [
     {
       "run_index": 1,
       "name": "condition_D_healthy_route_isolation",
-      "target_url": "http://127.0.0.1:57423/api/isolated",
+      "target_url": "http://127.0.0.1:55304/api/isolated",
       "concurrency": 8,
       "actual_duration_ms": 1502,
-      "total_requests": 7812,
-      "success_requests": 7812,
+      "total_requests": 8922,
+      "success_requests": 8922,
       "failure_requests": 0,
-      "throughput_rps": 5200.968983396979,
+      "throughput_rps": 5939.002411346809,
       "status_distribution": {
-        "200": 7812
+        "200": 8922
       },
-      "latency_p50_ms": 1.439,
-      "latency_p90_ms": 2.279,
-      "latency_p95_ms": 2.706,
-      "latency_p99_ms": 3.268,
+      "latency_p50_ms": 1.173,
+      "latency_p90_ms": 2.045,
+      "latency_p95_ms": 2.286,
+      "latency_p99_ms": 2.837,
       "latency_min_ms": 0,
-      "latency_max_ms": 4.336,
-      "latency_mean_ms": 1.4651724270353261
+      "latency_max_ms": 4.174,
+      "latency_mean_ms": 1.2821438018381508
     },
     {
       "run_index": 2,
       "name": "condition_D_healthy_route_isolation",
-      "target_url": "http://127.0.0.1:57423/api/isolated",
+      "target_url": "http://127.0.0.1:55304/api/isolated",
       "concurrency": 8,
-      "actual_duration_ms": 1501,
-      "total_requests": 8229,
-      "success_requests": 8229,
+      "actual_duration_ms": 1502,
+      "total_requests": 9328,
+      "success_requests": 9328,
       "failure_requests": 0,
-      "throughput_rps": 5480.582991770933,
+      "throughput_rps": 6207.681966504205,
       "status_distribution": {
-        "200": 8229
+        "200": 9328
       },
-      "latency_p50_ms": 1.288,
-      "latency_p90_ms": 2.296,
-      "latency_p95_ms": 2.669,
-      "latency_p99_ms": 3.257,
+      "latency_p50_ms": 1.144,
+      "latency_p90_ms": 2.091,
+      "latency_p95_ms": 2.31,
+      "latency_p99_ms": 3.025,
       "latency_min_ms": 0,
-      "latency_max_ms": 5.175,
-      "latency_mean_ms": 1.3964602017256063
+      "latency_max_ms": 5.344,
+      "latency_mean_ms": 1.232480381646661
     },
     {
       "run_index": 3,
       "name": "condition_D_healthy_route_isolation",
-      "target_url": "http://127.0.0.1:57423/api/isolated",
+      "target_url": "http://127.0.0.1:55304/api/isolated",
       "concurrency": 8,
       "actual_duration_ms": 1502,
-      "total_requests": 9372,
-      "success_requests": 9372,
+      "total_requests": 10813,
+      "success_requests": 10813,
       "failure_requests": 0,
-      "throughput_rps": 6236.053799604558,
+      "throughput_rps": 7194.664410790388,
       "status_distribution": {
-        "200": 9372
+        "200": 10813
       },
-      "latency_p50_ms": 1.132,
-      "latency_p90_ms": 2.206,
-      "latency_p95_ms": 2.423,
-      "latency_p99_ms": 2.852,
+      "latency_p50_ms": 1.08,
+      "latency_p90_ms": 1.876,
+      "latency_p95_ms": 2.21,
+      "latency_p99_ms": 2.644,
       "latency_min_ms": 0,
-      "latency_max_ms": 4.284,
-      "latency_mean_ms": 1.2285590055484406
+      "latency_max_ms": 3.977,
+      "latency_mean_ms": 1.063277443817626
     },
     {
       "run_index": 4,
       "name": "condition_D_healthy_route_isolation",
-      "target_url": "http://127.0.0.1:57423/api/isolated",
+      "target_url": "http://127.0.0.1:55304/api/isolated",
       "concurrency": 8,
-      "actual_duration_ms": 1501,
-      "total_requests": 10275,
-      "success_requests": 10275,
+      "actual_duration_ms": 1502,
+      "total_requests": 12761,
+      "success_requests": 12761,
       "failure_requests": 0,
-      "throughput_rps": 6842.553932810316,
+      "throughput_rps": 8493.750128128431,
       "status_distribution": {
-        "200": 10275
+        "200": 12761
       },
-      "latency_p50_ms": 1.064,
-      "latency_p90_ms": 2.169,
-      "latency_p95_ms": 2.438,
-      "latency_p99_ms": 2.933,
+      "latency_p50_ms": 0.592,
+      "latency_p90_ms": 1.743,
+      "latency_p95_ms": 2.106,
+      "latency_p99_ms": 2.476,
       "latency_min_ms": 0,
-      "latency_max_ms": 4.662,
-      "latency_mean_ms": 1.1184885644768836
+      "latency_max_ms": 4.452,
+      "latency_mean_ms": 0.9005124990204538
     },
     {
       "run_index": 5,
       "name": "condition_D_healthy_route_isolation",
-      "target_url": "http://127.0.0.1:57423/api/isolated",
+      "target_url": "http://127.0.0.1:55304/api/isolated",
       "concurrency": 8,
       "actual_duration_ms": 1502,
-      "total_requests": 11807,
-      "success_requests": 11807,
+      "total_requests": 14066,
+      "success_requests": 14066,
       "failure_requests": 0,
-      "throughput_rps": 7856.4746447202615,
+      "throughput_rps": 9362.927533031012,
       "status_distribution": {
-        "200": 11807
+        "200": 14066
       },
-      "latency_p50_ms": 0.59,
-      "latency_p90_ms": 1.909,
-      "latency_p95_ms": 2.318,
-      "latency_p99_ms": 2.817,
+      "latency_p50_ms": 0.574,
+      "latency_p90_ms": 1.679,
+      "latency_p95_ms": 1.976,
+      "latency_p99_ms": 2.504,
       "latency_min_ms": 0,
-      "latency_max_ms": 6.533,
-      "latency_mean_ms": 0.9756521555009716
+      "latency_max_ms": 3.888,
+      "latency_mean_ms": 0.8171342243708212
     }
   ]
 }

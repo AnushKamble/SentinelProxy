@@ -7,14 +7,14 @@ import (
 
 // TargetStatus records the current health state and recent probe history of a backend.
 type TargetStatus struct {
-	RouteID               string
-	BackendID             string
-	Healthy               bool
-	ConsecutiveSuccesses  int
-	ConsecutiveFailures   int
-	LastChecked           time.Time
-	LastStatusCode        int
-	LastError             string
+	RouteID              string
+	BackendID            string
+	Healthy              bool
+	ConsecutiveSuccesses int
+	ConsecutiveFailures  int
+	LastChecked          time.Time
+	LastStatusCode       int
+	LastError            string
 }
 
 // Registry manages thread-safe health states for all route/backend pairs.

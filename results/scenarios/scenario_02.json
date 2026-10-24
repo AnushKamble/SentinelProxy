@@ -9,7 +9,7 @@
   },
   "seed": 2002,
   "duration_ms": 5,
-  "workload_rate": "1378.20 req/s",
+  "workload_rate": "1280.43 req/s",
   "gateway_version": "v1.0.0",
   "go_version": "go1.27.0",
   "os": "windows",
@@ -22,10 +22,10 @@
   },
   "derived_metrics": {
     "breaker_tripped": true,
-    "latency_max_ms": 2.213,
-    "latency_p50_ms": 0.545,
-    "latency_p95_ms": 2.213,
-    "latency_p99_ms": 2.213
+    "latency_max_ms": 1.653,
+    "latency_p50_ms": 0.543,
+    "latency_p95_ms": 1.653,
+    "latency_p99_ms": 1.653
   },
-  "recorded_at": "2026-10-24T16:20:34.3271026+05:30"
+  "recorded_at": "2026-10-24T20:27:43.1789523+05:30"
 }

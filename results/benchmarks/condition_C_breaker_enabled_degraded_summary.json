@@ -1,122 +1,122 @@
 {
   "condition_name": "condition_C_breaker_enabled_degraded",
   "num_runs": 5,
-  "throughput_median_rps": 27098.526471535486,
-  "throughput_min_rps": 12555.431354056109,
-  "throughput_max_rps": 31108.400463478243,
+  "throughput_median_rps": 32621.812531583113,
+  "throughput_min_rps": 16382.807662315576,
+  "throughput_max_rps": 36196.642957039425,
   "latency_p50_median_ms": 0,
   "latency_p95_median_ms": 1.011,
-  "latency_p99_median_ms": 1.532,
+  "latency_p99_median_ms": 1.511,
   "success_rate_median_pct": 0,
   "runs": [
     {
       "run_index": 1,
       "name": "condition_C_breaker_enabled_degraded",
-      "target_url": "http://127.0.0.1:57404/api/primary",
+      "target_url": "http://127.0.0.1:55284/api/primary",
       "concurrency": 8,
-      "actual_duration_ms": 1502,
-      "total_requests": 18861,
+      "actual_duration_ms": 1504,
+      "total_requests": 24650,
       "success_requests": 0,
-      "failure_requests": 18861,
-      "throughput_rps": 12555.431354056109,
+      "failure_requests": 24650,
+      "throughput_rps": 16382.807662315576,
       "status_distribution": {
-        "503": 18861
+        "503": 24650
       },
-      "latency_p50_ms": 0.547,
-      "latency_p90_ms": 1.33,
-      "latency_p95_ms": 1.649,
-      "latency_p99_ms": 2.18,
+      "latency_p50_ms": 0.533,
+      "latency_p90_ms": 1.107,
+      "latency_p95_ms": 1.257,
+      "latency_p99_ms": 1.72,
       "latency_min_ms": 0,
-      "latency_max_ms": 8.561,
-      "latency_mean_ms": 0.5797738189915705
+      "latency_max_ms": 2.676,
+      "latency_mean_ms": 0.44221922920892515
     },
     {
       "run_index": 2,
       "name": "condition_C_breaker_enabled_degraded",
-      "target_url": "http://127.0.0.1:57404/api/primary",
+      "target_url": "http://127.0.0.1:55284/api/primary",
       "concurrency": 8,
-      "actual_duration_ms": 1503,
-      "total_requests": 29177,
+      "actual_duration_ms": 1506,
+      "total_requests": 40002,
       "success_requests": 0,
-      "failure_requests": 29177,
-      "throughput_rps": 19412.466986098232,
+      "failure_requests": 40002,
+      "throughput_rps": 26550.380046369246,
       "status_distribution": {
         "500": 1,
-        "503": 29176
+        "503": 40001
       },
       "latency_p50_ms": 0,
-      "latency_p90_ms": 1.049,
-      "latency_p95_ms": 1.254,
-      "latency_p99_ms": 1.922,
+      "latency_p90_ms": 0.66,
+      "latency_p95_ms": 1.017,
+      "latency_p99_ms": 1.504,
       "latency_min_ms": 0,
-      "latency_max_ms": 50.796,
-      "latency_mean_ms": 0.37712780614867825
+      "latency_max_ms": 51.027,
+      "latency_mean_ms": 0.27307199640018165
     },
     {
       "run_index": 3,
       "name": "condition_C_breaker_enabled_degraded",
-      "target_url": "http://127.0.0.1:57404/api/primary",
+      "target_url": "http://127.0.0.1:55284/api/primary",
       "concurrency": 8,
-      "actual_duration_ms": 1505,
-      "total_requests": 40791,
+      "actual_duration_ms": 1506,
+      "total_requests": 49159,
       "success_requests": 0,
-      "failure_requests": 40791,
-      "throughput_rps": 27098.526471535486,
+      "failure_requests": 49159,
+      "throughput_rps": 32621.812531583113,
       "status_distribution": {
         "500": 1,
-        "503": 40790
+        "503": 49158
       },
       "latency_p50_ms": 0,
-      "latency_p90_ms": 0.65,
-      "latency_p95_ms": 0.998,
-      "latency_p99_ms": 1.532,
+      "latency_p90_ms": 0.688,
+      "latency_p95_ms": 1.011,
+      "latency_p99_ms": 1.511,
       "latency_min_ms": 0,
-      "latency_max_ms": 51.647,
-      "latency_mean_ms": 0.2697771322105367
+      "latency_max_ms": 51.356,
+      "latency_mean_ms": 0.22370945299945308
     },
     {
       "run_index": 4,
       "name": "condition_C_breaker_enabled_degraded",
-      "target_url": "http://127.0.0.1:57404/api/primary",
+      "target_url": "http://127.0.0.1:55284/api/primary",
       "concurrency": 8,
-      "actual_duration_ms": 1504,
-      "total_requests": 45496,
+      "actual_duration_ms": 1508,
+      "total_requests": 53177,
       "success_requests": 0,
-      "failure_requests": 45496,
-      "throughput_rps": 30242.29263911664,
+      "failure_requests": 53177,
+      "throughput_rps": 35243.90883229176,
       "status_distribution": {
         "500": 1,
-        "503": 45495
+        "503": 53176
       },
       "latency_p50_ms": 0,
-      "latency_p90_ms": 0.657,
-      "latency_p95_ms": 1.001,
-      "latency_p99_ms": 1.519,
+      "latency_p90_ms": 0.762,
+      "latency_p95_ms": 1.011,
+      "latency_p99_ms": 1.51,
       "latency_min_ms": 0,
-      "latency_max_ms": 50.798,
-      "latency_mean_ms": 0.24178257429224617
+      "latency_max_ms": 51.301,
+      "latency_mean_ms": 0.20639789758730775
     },
     {
       "run_index": 5,
       "name": "condition_C_breaker_enabled_degraded",
-      "target_url": "http://127.0.0.1:57404/api/primary",
+      "target_url": "http://127.0.0.1:55284/api/primary",
       "concurrency": 8,
       "actual_duration_ms": 1505,
-      "total_requests": 46844,
+      "total_requests": 54478,
       "success_requests": 0,
-      "failure_requests": 46844,
-      "throughput_rps": 31108.400463478243,
+      "failure_requests": 54478,
+      "throughput_rps": 36196.642957039425,
       "status_distribution": {
         "500": 1,
-        "503": 46843
+        "503": 54477
       },
       "latency_p50_ms": 0,
-      "latency_p90_ms": 0.998,
-      "latency_p95_ms": 1.011,
-      "latency_p99_ms": 1.53,
+      "latency_p90_ms": 0.668,
+      "latency_p95_ms": 1.003,
+      "latency_p99_ms": 1.517,
       "latency_min_ms": 0,
-      "latency_max_ms": 51.212,
-      "latency_mean_ms": 0.23534367261548855
+      "latency_max_ms": 51.48,
+      "latency_mean_ms": 0.20166727853445718
     }
   ]
 }
