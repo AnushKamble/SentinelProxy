@@ -15,33 +15,43 @@ import (
 	"github.com/sentinelproxy/sentinelproxy/internal/balancer"
 	"github.com/sentinelproxy/sentinelproxy/internal/circuitbreaker"
 	"github.com/sentinelproxy/sentinelproxy/internal/config"
+	"github.com/sentinelproxy/sentinelproxy/internal/health"
 	"github.com/sentinelproxy/sentinelproxy/internal/proxy"
 	"github.com/sentinelproxy/sentinelproxy/internal/router"
 )
 
 // App manages the lifecycle of the SentinelProxy gateway.
 type App struct {
-	configPath    string
-	sm            *config.SnapshotManager
-	admin         *admin.Handler
-	server        *http.Server
-	transport     *http.Transport
-	router        *router.Router
-	balancers     map[string]balancer.Balancer                  // key: route.ID
-	routeBackends map[string][]*balancer.Backend                // key: route.ID
-	breakers      map[string]*circuitbreaker.CircuitBreaker     // key: routeID + "/" + backendID
-	proxies       map[string]*proxy.ProxyHandler                // key: backend.ID
-	logger        *slog.Logger
-	listener      net.Listener
-	mu            sync.RWMutex
+	configPath     string
+	sm             *config.SnapshotManager
+	admin          *admin.Handler
+	server         *http.Server
+	transport      *http.Transport
+	router         *router.Router
+	balancers      map[string]balancer.Balancer                  // key: route.ID
+	routeBackends  map[string][]*balancer.Backend                // key: route.ID
+	breakers       map[string]*circuitbreaker.CircuitBreaker     // key: routeID + "/" + backendID
+	healthRegistry *health.Registry
+	healthChecker  *health.Checker
+	proxies        map[string]*proxy.ProxyHandler                // key: backend.ID
+	logger         *slog.Logger
+	listener       net.Listener
+	mu             sync.RWMutex
 }
 
-type breakerEligibilityChecker struct {
+type backendEligibilityChecker struct {
 	routeID  string
 	breakers map[string]*circuitbreaker.CircuitBreaker
+	health   *health.Registry
 }
 
-func (c *breakerEligibilityChecker) IsEligible(backendID string) bool {
+func (c *backendEligibilityChecker) IsEligible(backendID string) bool {
+	// 1. Check active health state
+	if c.health != nil && !c.health.IsHealthy(c.routeID, backendID) {
+		return false
+	}
+
+	// 2. Check circuit breaker state
 	cbKey := c.routeID + "/" + backendID
 	if cb, ok := c.breakers[cbKey]; ok {
 		// If breaker is OPEN and open duration hasn't expired, backend is not eligible
@@ -105,6 +115,8 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 	routeBackends := make(map[string][]*balancer.Backend)
 	breakers := make(map[string]*circuitbreaker.CircuitBreaker)
 	proxies := make(map[string]*proxy.ProxyHandler)
+	healthReg := health.NewRegistry()
+	var probeTargets []health.ProbeTarget
 
 	for _, r := range cfg.Routes {
 		if r.LoadBalancer == "least_connections" {
@@ -132,6 +144,17 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 				logger.Warn("circuit breaker state transition", "route_id", rt, "backend_id", bk, "from", from, "to", to)
 			})
 
+			// Setup health check target if configured
+			if r.HealthCheck.Path != "" {
+				probeURL := strings.TrimSuffix(b.URL, "/") + r.HealthCheck.Path
+				probeTargets = append(probeTargets, health.ProbeTarget{
+					RouteID:   r.ID,
+					BackendID: b.ID,
+					ProbeURL:  probeURL,
+					Config:    r.HealthCheck,
+				})
+			}
+
 			if _, exists := proxies[b.ID]; !exists {
 				proxies[b.ID] = proxy.NewProxyHandler(targetURL, transport)
 			}
@@ -139,17 +162,23 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 		routeBackends[r.ID] = bList
 	}
 
+	checker := health.NewChecker(healthReg, probeTargets, func(rt, bk string, healthy bool) {
+		logger.Warn("backend health state change", "route_id", rt, "backend_id", bk, "healthy", healthy)
+	})
+
 	app := &App{
-		configPath:    configPath,
-		sm:            sm,
-		admin:         adminHandler,
-		transport:     transport,
-		router:        rtr,
-		balancers:     balancers,
-		routeBackends: routeBackends,
-		breakers:      breakers,
-		proxies:       proxies,
-		logger:        logger,
+		configPath:     configPath,
+		sm:             sm,
+		admin:          adminHandler,
+		transport:      transport,
+		router:         rtr,
+		balancers:      balancers,
+		routeBackends:  routeBackends,
+		breakers:       breakers,
+		healthRegistry: healthReg,
+		healthChecker:  checker,
+		proxies:        proxies,
+		logger:         logger,
 	}
 
 	mux := http.NewServeMux()
@@ -201,12 +230,13 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	checker := &breakerEligibilityChecker{
+	checker := &backendEligibilityChecker{
 		routeID:  route.ID,
 		breakers: a.breakers,
+		health:   a.healthRegistry,
 	}
 
-	// Select candidate backend through load balancer filtered by circuit breaker state
+	// Select candidate backend through load balancer filtered by health and circuit breaker state
 	chosenBackend, releaseFunc, err := bal.Select(candidates, checker)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -250,7 +280,7 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	ph.ServeHTTP(w, r.WithContext(observedCtx))
 }
 
-// Start begins listening on the configured address.
+// Start begins listening on the configured address and starts active health checks.
 func (a *App) Start() error {
 	ln, err := net.Listen("tcp", a.server.Addr)
 	if err != nil {
@@ -258,6 +288,11 @@ func (a *App) Start() error {
 	}
 	a.listener = ln
 	a.logger.Info("SentinelProxy started", "addr", ln.Addr().String())
+
+	// Start active health checking in background
+	if a.healthChecker != nil {
+		a.healthChecker.Start(context.Background())
+	}
 
 	if err := a.server.Serve(ln); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("server error: %w", err)
@@ -273,10 +308,15 @@ func (a *App) Addr() string {
 	return a.server.Addr
 }
 
-// Shutdown gracefully stops the server and closes idle transport connections.
+// Shutdown gracefully stops the server, health checks, and closes idle transport connections.
 func (a *App) Shutdown(ctx context.Context) error {
 	a.admin.SetReady(false)
 	a.logger.Info("SentinelProxy shutting down...")
+
+	// Stop health checking goroutines promptly
+	if a.healthChecker != nil {
+		a.healthChecker.Stop()
+	}
 
 	err := a.server.Shutdown(ctx)
 	a.transport.CloseIdleConnections()
