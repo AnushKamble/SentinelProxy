@@ -1,0 +1,6 @@
+run_index,condition,target_url,concurrency,duration_ms,total_requests,success_requests,failure_requests,throughput_rps,p50_ms,p90_ms,p95_ms,p99_ms,min_ms,max_ms,mean_ms
+1,condition_B_breaker_disabled_degraded,http://127.0.0.1:57369/api/primary,8,1532,240,0,240,156.62,50.97,51.63,51.70,52.06,50.02,52.14,50.99
+2,condition_B_breaker_disabled_degraded,http://127.0.0.1:57369/api/primary,8,1533,240,0,240,156.46,50.94,51.54,51.91,52.55,50.02,53.02,51.01
+3,condition_B_breaker_disabled_degraded,http://127.0.0.1:57369/api/primary,8,1534,240,0,240,156.37,50.96,51.53,51.75,52.47,50.04,52.62,51.03
+4,condition_B_breaker_disabled_degraded,http://127.0.0.1:57369/api/primary,8,1530,240,0,240,156.80,50.90,51.45,51.72,52.00,50.00,52.19,50.94
+5,condition_B_breaker_disabled_degraded,http://127.0.0.1:57369/api/primary,8,1533,240,0,240,156.54,50.91,51.58,51.81,52.21,50.09,52.45,51.00

@@ -1,0 +1,6 @@
+run_index,condition,target_url,concurrency,duration_ms,total_requests,success_requests,failure_requests,throughput_rps,p50_ms,p90_ms,p95_ms,p99_ms,min_ms,max_ms,mean_ms
+1,condition_D_healthy_route_isolation,http://127.0.0.1:57423/api/isolated,8,1502,7812,7812,0,5200.97,1.44,2.28,2.71,3.27,0.00,4.34,1.47
+2,condition_D_healthy_route_isolation,http://127.0.0.1:57423/api/isolated,8,1501,8229,8229,0,5480.58,1.29,2.30,2.67,3.26,0.00,5.17,1.40
+3,condition_D_healthy_route_isolation,http://127.0.0.1:57423/api/isolated,8,1502,9372,9372,0,6236.05,1.13,2.21,2.42,2.85,0.00,4.28,1.23
+4,condition_D_healthy_route_isolation,http://127.0.0.1:57423/api/isolated,8,1501,10275,10275,0,6842.55,1.06,2.17,2.44,2.93,0.00,4.66,1.12
+5,condition_D_healthy_route_isolation,http://127.0.0.1:57423/api/isolated,8,1502,11807,11807,0,7856.47,0.59,1.91,2.32,2.82,0.00,6.53,0.98

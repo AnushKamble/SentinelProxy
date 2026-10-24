@@ -1,0 +1,118 @@
+{
+  "condition_name": "condition_D_healthy_route_isolation",
+  "num_runs": 5,
+  "throughput_median_rps": 6236.053799604558,
+  "throughput_min_rps": 5200.968983396979,
+  "throughput_max_rps": 7856.4746447202615,
+  "latency_p50_median_ms": 1.132,
+  "latency_p95_median_ms": 2.438,
+  "latency_p99_median_ms": 2.933,
+  "success_rate_median_pct": 100,
+  "runs": [
+    {
+      "run_index": 1,
+      "name": "condition_D_healthy_route_isolation",
+      "target_url": "http://127.0.0.1:57423/api/isolated",
+      "concurrency": 8,
+      "actual_duration_ms": 1502,
+      "total_requests": 7812,
+      "success_requests": 7812,
+      "failure_requests": 0,
+      "throughput_rps": 5200.968983396979,
+      "status_distribution": {
+        "200": 7812
+      },
+      "latency_p50_ms": 1.439,
+      "latency_p90_ms": 2.279,
+      "latency_p95_ms": 2.706,
+      "latency_p99_ms": 3.268,
+      "latency_min_ms": 0,
+      "latency_max_ms": 4.336,
+      "latency_mean_ms": 1.4651724270353261
+    },
+    {
+      "run_index": 2,
+      "name": "condition_D_healthy_route_isolation",
+      "target_url": "http://127.0.0.1:57423/api/isolated",
+      "concurrency": 8,
+      "actual_duration_ms": 1501,
+      "total_requests": 8229,
+      "success_requests": 8229,
+      "failure_requests": 0,
+      "throughput_rps": 5480.582991770933,
+      "status_distribution": {
+        "200": 8229
+      },
+      "latency_p50_ms": 1.288,
+      "latency_p90_ms": 2.296,
+      "latency_p95_ms": 2.669,
+      "latency_p99_ms": 3.257,
+      "latency_min_ms": 0,
+      "latency_max_ms": 5.175,
+      "latency_mean_ms": 1.3964602017256063
+    },
+    {
+      "run_index": 3,
+      "name": "condition_D_healthy_route_isolation",
+      "target_url": "http://127.0.0.1:57423/api/isolated",
+      "concurrency": 8,
+      "actual_duration_ms": 1502,
+      "total_requests": 9372,
+      "success_requests": 9372,
+      "failure_requests": 0,
+      "throughput_rps": 6236.053799604558,
+      "status_distribution": {
+        "200": 9372
+      },
+      "latency_p50_ms": 1.132,
+      "latency_p90_ms": 2.206,
+      "latency_p95_ms": 2.423,
+      "latency_p99_ms": 2.852,
+      "latency_min_ms": 0,
+      "latency_max_ms": 4.284,
+      "latency_mean_ms": 1.2285590055484406
+    },
+    {
+      "run_index": 4,
+      "name": "condition_D_healthy_route_isolation",
+      "target_url": "http://127.0.0.1:57423/api/isolated",
+      "concurrency": 8,
+      "actual_duration_ms": 1501,
+      "total_requests": 10275,
+      "success_requests": 10275,
+      "failure_requests": 0,
+      "throughput_rps": 6842.553932810316,
+      "status_distribution": {
+        "200": 10275
+      },
+      "latency_p50_ms": 1.064,
+      "latency_p90_ms": 2.169,
+      "latency_p95_ms": 2.438,
+      "latency_p99_ms": 2.933,
+      "latency_min_ms": 0,
+      "latency_max_ms": 4.662,
+      "latency_mean_ms": 1.1184885644768836
+    },
+    {
+      "run_index": 5,
+      "name": "condition_D_healthy_route_isolation",
+      "target_url": "http://127.0.0.1:57423/api/isolated",
+      "concurrency": 8,
+      "actual_duration_ms": 1502,
+      "total_requests": 11807,
+      "success_requests": 11807,
+      "failure_requests": 0,
+      "throughput_rps": 7856.4746447202615,
+      "status_distribution": {
+        "200": 11807
+      },
+      "latency_p50_ms": 0.59,
+      "latency_p90_ms": 1.909,
+      "latency_p95_ms": 2.318,
+      "latency_p99_ms": 2.817,
+      "latency_min_ms": 0,
+      "latency_max_ms": 6.533,
+      "latency_mean_ms": 0.9756521555009716
+    }
+  ]
+}
