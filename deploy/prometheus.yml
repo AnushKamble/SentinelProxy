@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 2s
+  evaluation_interval: 2s
+
+scrape_configs:
+  - job_name: "sentinelproxy"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["gateway:8080"]
+        labels:
+          environment: "demo"
+          app: "sentinelproxy"

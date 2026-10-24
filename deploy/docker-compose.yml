@@ -1,0 +1,61 @@
+version: "3.8"
+
+services:
+  gateway:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: sentinelproxy-gateway
+    command: ["-config", "/app/configs/sentinelproxy.docker.yaml"]
+    ports:
+      - "8080:8080"
+    depends_on:
+      backend-1:
+        condition: service_started
+      backend-2:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+    networks:
+      - sentinel-net
+
+  backend-1:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: sentinelproxy-backend-1
+    entrypoint: ["/app/mock-backend"]
+    command: ["-id", "backend-1", "-port", "9001"]
+    ports:
+      - "9001:9001"
+    networks:
+      - sentinel-net
+
+  backend-2:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: sentinelproxy-backend-2
+    entrypoint: ["/app/mock-backend"]
+    command: ["-id", "backend-2", "-port", "9002"]
+    ports:
+      - "9002:9002"
+    networks:
+      - sentinel-net
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: sentinelproxy-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    networks:
+      - sentinel-net
+
+networks:
+  sentinel-net:
+    driver: bridge
