@@ -13,10 +13,12 @@ import (
 	"sync"
 
 	"github.com/sentinelproxy/sentinelproxy/internal/admin"
+	"github.com/sentinelproxy/sentinelproxy/internal/auth"
 	"github.com/sentinelproxy/sentinelproxy/internal/balancer"
 	"github.com/sentinelproxy/sentinelproxy/internal/circuitbreaker"
 	"github.com/sentinelproxy/sentinelproxy/internal/config"
 	"github.com/sentinelproxy/sentinelproxy/internal/health"
+	"github.com/sentinelproxy/sentinelproxy/internal/middleware"
 	"github.com/sentinelproxy/sentinelproxy/internal/proxy"
 	"github.com/sentinelproxy/sentinelproxy/internal/ratelimit"
 	"github.com/sentinelproxy/sentinelproxy/internal/router"
@@ -36,6 +38,7 @@ type App struct {
 	healthRegistry *health.Registry
 	healthChecker  *health.Checker
 	limiters       map[string]*ratelimit.Limiter                 // key: route.ID
+	jwtVerifier    auth.Verifier
 	keyExtractor   *ratelimit.KeyExtractor
 	proxies        map[string]*proxy.ProxyHandler                // key: backend.ID
 	logger         *slog.Logger
@@ -125,6 +128,24 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 		return nil, fmt.Errorf("invalid trusted_proxy_cidrs: %w", err)
 	}
 
+	// Initialize JWT verifier if any route requires authentication
+	var jwtVerifier auth.Verifier
+	needsAuth := cfg.Security.JWT.Enabled
+	for _, r := range cfg.Routes {
+		if r.AuthRequired {
+			needsAuth = true
+			break
+		}
+	}
+
+	if needsAuth {
+		verifier, err := auth.NewHMACVerifier(cfg.Security.JWT)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize jwt verifier: %w", err)
+		}
+		jwtVerifier = verifier
+	}
+
 	for _, r := range cfg.Routes {
 		if r.LoadBalancer == "least_connections" {
 			balancers[r.ID] = balancer.NewLeastConnectionsBalancer()
@@ -187,6 +208,7 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 		healthRegistry: healthReg,
 		healthChecker:  checker,
 		limiters:       limiters,
+		jwtVerifier:    jwtVerifier,
 		keyExtractor:   keyExtractor,
 		proxies:        proxies,
 		logger:         logger,
@@ -196,9 +218,12 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 	adminHandler.RegisterRoutes(mux)
 	mux.HandleFunc("/", app.serveHTTP)
 
+	// Wrap root with defensive security headers
+	securedHandler := middleware.SecurityHeadersMiddleware(mux)
+
 	app.server = &http.Server{
 		Addr:              cfg.Server.ListenAddr,
-		Handler:           mux,
+		Handler:           securedHandler,
 		ReadHeaderTimeout: cfg.Server.ReadHeaderTimeout,
 		IdleTimeout:       cfg.Server.IdleTimeout,
 	}
@@ -206,7 +231,7 @@ func New(cfg *config.Config, configPath string) (*App, error) {
 	return app, nil
 }
 
-// ServeHTTP routes incoming requests through router, rate limiter, balancer, circuit breaker, and reverse proxy.
+// ServeHTTP routes incoming requests through security, auth, rate limiter, balancer, breaker, and proxy.
 func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	match := a.router.Match(r.URL.Path, r.Method)
 	if match.IsReserved {
@@ -229,6 +254,48 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	route := match.Route
+	snap := a.sm.Get()
+	headerName := "X-Request-ID"
+	if snap != nil && snap.Config != nil && snap.Config.Security.RequestIDHeader != "" {
+		headerName = snap.Config.Security.RequestIDHeader
+	}
+	reqID := middleware.ValidateAndExtractRequestID(r, headerName)
+	w.Header().Set(headerName, reqID)
+	reqCtx := middleware.WithRequestID(r.Context(), reqID)
+
+	var authenticatedSub string
+
+	// Enforce JWT authentication if route requires it
+	if route.AuthRequired {
+		if a.jwtVerifier == nil {
+			// Fail closed if verifier is unconfigured
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
+			return
+		}
+
+		authHeader := r.Header.Get("Authorization")
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
+			return
+		}
+
+		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+		claims, err := a.jwtVerifier.Verify(tokenStr)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
+			return
+		}
+
+		if sub, ok := claims["sub"].(string); ok {
+			authenticatedSub = sub
+		}
+	}
 
 	// Enforce local token-bucket rate limiting if enabled for this route
 	if route.RateLimit.Enabled {
@@ -237,7 +304,7 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		a.mu.RUnlock()
 
 		if limiter != nil {
-			clientKey := a.keyExtractor.ExtractKey(r, "")
+			clientKey := a.keyExtractor.ExtractKey(r, authenticatedSub)
 			allowed, retryAfter := limiter.Allow(clientKey)
 			if !allowed {
 				retrySeconds := int(retryAfter.Seconds())
@@ -308,7 +375,7 @@ func (a *App) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		classifier: cb.Classifier(),
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), route.Timeout)
+	ctx, cancel := context.WithTimeout(reqCtx, route.Timeout)
 	defer cancel()
 
 	observedCtx := proxy.WithObserver(ctx, obs)
