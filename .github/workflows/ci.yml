@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    name: Build, Vet, Race & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          check-latest: false
+
+      - name: Verify Formatting
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Files not formatted with gofmt:"
+            gofmt -l .
+            exit 1
+          fi
+
+      - name: Go Vet
+        run: go vet ./...
+
+      - name: Run Tests with Race Detector
+        run: go test -v -race ./... -timeout 10m
+
+      - name: Build Binaries
+        run: |
+          go build -v -o bin/sentinelproxy ./cmd/sentinelproxy
+          go build -v -o bin/loadgen ./cmd/loadgen
+          go build -v -o bin/mock-backend ./cmd/mock-backend
