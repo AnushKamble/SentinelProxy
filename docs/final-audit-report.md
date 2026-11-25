@@ -1,7 +1,7 @@
 # SentinelProxy — Independent Adversarial Audit Report
 
-**Audit Date:** 2026-10-24  
-**Audit Scope:** Full codebase, tests, scripts, configurations, documentation, and empirical artifacts against `SentinelProxy_Project_Plan_and_Technical_Specification.md`.  
+**Audit Date:** 2026-10-24
+**Audit Scope:** Full codebase, tests, scripts, configurations, documentation, and empirical artifacts against `SentinelProxy_Project_Plan_and_Technical_Specification.md`.
 **Final Certification Status:** **CORE COMPLETE**
 
 ---

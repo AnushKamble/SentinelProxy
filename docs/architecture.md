@@ -9,7 +9,7 @@ SentinelProxy is an edge API gateway built in Go designed for fault isolation, h
 ```mermaid
 flowchart TD
     Client["Client Request"] --> Gateway["SentinelProxy HTTP Server"]
-    
+
     subgraph InboundPipeline ["Inbound Middleware & Admission Pipeline"]
         Gateway --> SecHdr["Security Headers & Request-ID Validation"]
         SecHdr --> OTel["OpenTelemetry Server Span Injection"]
@@ -116,7 +116,7 @@ stateDiagram-v2
 
     CLOSED --> OPEN : Failure rate >= threshold\nAND samples >= min_samples
     OPEN --> HALF_OPEN : Cooldown elapsed\n(time >= openedAt + open_duration)
-    
+
     HALF_OPEN --> CLOSED : consecutive_successes >= half_open_successes_to_close
     HALF_OPEN --> OPEN : Any probe failure OR timeout
 ```
