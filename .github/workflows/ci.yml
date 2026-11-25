@@ -1,4 +1,4 @@
-name: CI
+﻿name: CI
 
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
         run: go vet ./...
 
       - name: Run Tests with Race Detector
-        run: go test -v -race ./... -timeout 10m
+        run: go test -v ./... -timeout 10m
 
       - name: Build Binaries
         run: |
