@@ -1,6 +1,6 @@
 run_index,condition,target_url,concurrency,duration_ms,total_requests,success_requests,failure_requests,throughput_rps,p50_ms,p90_ms,p95_ms,p99_ms,min_ms,max_ms,mean_ms
-1,condition_C_breaker_enabled_degraded,http://127.0.0.1:55284/api/primary,8,1504,24650,0,24650,16382.81,0.53,1.11,1.26,1.72,0.00,2.68,0.44
-2,condition_C_breaker_enabled_degraded,http://127.0.0.1:55284/api/primary,8,1506,40002,0,40002,26550.38,0.00,0.66,1.02,1.50,0.00,51.03,0.27
-3,condition_C_breaker_enabled_degraded,http://127.0.0.1:55284/api/primary,8,1506,49159,0,49159,32621.81,0.00,0.69,1.01,1.51,0.00,51.36,0.22
-4,condition_C_breaker_enabled_degraded,http://127.0.0.1:55284/api/primary,8,1508,53177,0,53177,35243.91,0.00,0.76,1.01,1.51,0.00,51.30,0.21
-5,condition_C_breaker_enabled_degraded,http://127.0.0.1:55284/api/primary,8,1505,54478,0,54478,36196.64,0.00,0.67,1.00,1.52,0.00,51.48,0.20
+1,condition_C_breaker_enabled_degraded,http://127.0.0.1:59708/api/primary,8,1503,14514,0,14514,9651.06,0.57,1.69,2.19,3.83,0.00,13.20,0.75
+2,condition_C_breaker_enabled_degraded,http://127.0.0.1:59708/api/primary,8,1504,6853,0,6853,4553.62,0.87,3.84,5.47,8.52,0.00,53.61,1.58
+3,condition_C_breaker_enabled_degraded,http://127.0.0.1:59708/api/primary,8,1508,6070,0,6070,4024.05,1.03,4.66,6.47,9.38,0.00,63.48,1.80
+4,condition_C_breaker_enabled_degraded,http://127.0.0.1:59708/api/primary,8,1507,7278,0,7278,4828.74,1.00,3.37,5.42,9.10,0.00,55.82,1.49
+5,condition_C_breaker_enabled_degraded,http://127.0.0.1:59708/api/primary,8,1510,8291,0,8291,5487.63,0.84,2.23,4.28,8.42,0.00,52.05,1.31

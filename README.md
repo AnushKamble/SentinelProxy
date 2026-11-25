@@ -1,11 +1,11 @@
-# SentinelProxy
+﻿# SentinelProxy
 
 > **A high-concurrency, fault-isolating API gateway written in Go.**  
 > Featuring deterministic longest-prefix routing, sliding-window circuit breakers with admission permits, local token-bucket rate limiting, strict HMAC-SHA256 JWT validation, OpenTelemetry/W3C distributed tracing, Prometheus observability, and zero-downtime hot configuration reloads.
 
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat&logo=go)](https://golang.org)
-[![Build Status](https://img.shields.io/badge/Build-Passing-success)](https://github.com/sentinelproxy/sentinelproxy)
-[![Tests](https://img.shields.io/badge/Tests-100%25%20Passing-brightgreen)](https://github.com/sentinelproxy/sentinelproxy)
+[![CI](https://github.com/AnushKamble/SentinelProxy/actions/workflows/ci.yml/badge.svg)](https://github.com/AnushKamble/SentinelProxy/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/Tests-100%25%20Passing-brightgreen)](https://github.com/AnushKamble/SentinelProxy)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
@@ -140,38 +140,38 @@ go test -v ./tests/integration -run TestScenario
 
 ```
 SentinelProxy/
-├── bench/                  # High-throughput workload generator & benchmark suite
-├── cmd/
-│   ├── loadgen/            # CLI load generation tool
-│   ├── mock-backend/       # Controllable mock backend with fault injection
-│   └── sentinelproxy/      # Gateway entrypoint
-├── configs/                # Strict YAML configuration templates
-├── deploy/                 # Dockerfile, Docker Compose & Prometheus setup
-├── docs/                   # Architecture, threat model, failure semantics, limitations
-│   ├── decisions/          # Architecture Decision Records (ADRs 0001-0006)
-│   ├── architecture.md     # Deep-dive system architecture
-│   ├── configuration.md    # YAML configuration contract & reference
-│   ├── threat-model.md     # Security threat model & mitigation strategies
-│   ├── failure-semantics.md# Status codes, error mapping & state transitions
-│   ├── benchmark-protocol.md# Benchmark methodology & empirical data
-│   └── limitations.md      # Engineering trade-offs & future scope
-├── internal/
-│   ├── admin/              # Health & admin handlers (/healthz, /readyz, /-/status)
-│   ├── app/                # Server lifecycle, dependency wiring, and middleware
-│   ├── auth/               # HMAC-SHA256 JWT verifier
-│   ├── balancer/           # Round-robin and least-connections balancers
-│   ├── circuitbreaker/     # Sliding-window circuit breaker & admission permits
-│   ├── config/             # Strict YAML validation, snapshots, and file watcher
-│   ├── health/             # Active prober with hysteresis
-│   ├── middleware/         # Security headers & request-ID validation
-│   ├── mock/               # Mock backend engine
-│   ├── proxy/              # httputil.ReverseProxy & pooled transport
-│   ├── ratelimit/          # Monotonic token-bucket rate limiter
-│   ├── router/             # Longest-prefix route matcher
-│   └── telemetry/          # OpenTelemetry tracing, Prometheus metrics, structured logs
-├── results/                # Raw empirical benchmark & scenario JSON/CSV outputs
-├── scripts/                # Multi-process native demo and benchmark scripts
-└── tests/                  # Integration & security test suites
+â”œâ”€â”€ bench/                  # High-throughput workload generator & benchmark suite
+â”œâ”€â”€ cmd/
+â”‚   â”œâ”€â”€ loadgen/            # CLI load generation tool
+â”‚   â”œâ”€â”€ mock-backend/       # Controllable mock backend with fault injection
+â”‚   â””â”€â”€ sentinelproxy/      # Gateway entrypoint
+â”œâ”€â”€ configs/                # Strict YAML configuration templates
+â”œâ”€â”€ deploy/                 # Dockerfile, Docker Compose & Prometheus setup
+â”œâ”€â”€ docs/                   # Architecture, threat model, failure semantics, limitations
+â”‚   â”œâ”€â”€ decisions/          # Architecture Decision Records (ADRs 0001-0006)
+â”‚   â”œâ”€â”€ architecture.md     # Deep-dive system architecture
+â”‚   â”œâ”€â”€ configuration.md    # YAML configuration contract & reference
+â”‚   â”œâ”€â”€ threat-model.md     # Security threat model & mitigation strategies
+â”‚   â”œâ”€â”€ failure-semantics.md# Status codes, error mapping & state transitions
+â”‚   â”œâ”€â”€ benchmark-protocol.md# Benchmark methodology & empirical data
+â”‚   â””â”€â”€ limitations.md      # Engineering trade-offs & future scope
+â”œâ”€â”€ internal/
+â”‚   â”œâ”€â”€ admin/              # Health & admin handlers (/healthz, /readyz, /-/status)
+â”‚   â”œâ”€â”€ app/                # Server lifecycle, dependency wiring, and middleware
+â”‚   â”œâ”€â”€ auth/               # HMAC-SHA256 JWT verifier
+â”‚   â”œâ”€â”€ balancer/           # Round-robin and least-connections balancers
+â”‚   â”œâ”€â”€ circuitbreaker/     # Sliding-window circuit breaker & admission permits
+â”‚   â”œâ”€â”€ config/             # Strict YAML validation, snapshots, and file watcher
+â”‚   â”œâ”€â”€ health/             # Active prober with hysteresis
+â”‚   â”œâ”€â”€ middleware/         # Security headers & request-ID validation
+â”‚   â”œâ”€â”€ mock/               # Mock backend engine
+â”‚   â”œâ”€â”€ proxy/              # httputil.ReverseProxy & pooled transport
+â”‚   â”œâ”€â”€ ratelimit/          # Monotonic token-bucket rate limiter
+â”‚   â”œâ”€â”€ router/             # Longest-prefix route matcher
+â”‚   â””â”€â”€ telemetry/          # OpenTelemetry tracing, Prometheus metrics, structured logs
+â”œâ”€â”€ results/                # Raw empirical benchmark & scenario JSON/CSV outputs
+â”œâ”€â”€ scripts/                # Multi-process native demo and benchmark scripts
+â””â”€â”€ tests/                  # Integration & security test suites
 ```
 
 ---

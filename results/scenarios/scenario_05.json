@@ -8,8 +8,8 @@
     "surviving_backend": "backend-s5-2"
   },
   "seed": 5005,
-  "duration_ms": 5,
-  "workload_rate": "1884.45 req/s",
+  "duration_ms": 3,
+  "workload_rate": "2719.61 req/s",
   "gateway_version": "v1.0.0",
   "go_version": "go1.27.0",
   "os": "windows",
@@ -21,10 +21,10 @@
   },
   "derived_metrics": {
     "failover_success_rate": 100,
-    "latency_max_ms": 1.08,
-    "latency_p50_ms": 0.524,
-    "latency_p95_ms": 1.08,
-    "latency_p99_ms": 1.08
+    "latency_max_ms": 0.534,
+    "latency_p50_ms": 0.521,
+    "latency_p95_ms": 0.534,
+    "latency_p99_ms": 0.534
   },
-  "recorded_at": "2026-10-24T21:06:50.2048871+05:30"
+  "recorded_at": "2026-11-17T18:29:50.4731003+05:30"
 }
